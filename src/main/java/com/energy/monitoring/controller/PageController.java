@@ -20,4 +20,19 @@ public class PageController {
     public String register() {
         return "register";
     }
+
+    @GetMapping("/dashboard")
+    public String dashboard() {
+        return "dashboard";
+    }
+
+    @GetMapping("/profile")
+    public String profile() {
+        return "profile";
+    }
+
+    @GetMapping("/anomalies")
+    public String anomalies() {
+        return "anomalies";
+    }
 }

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Моніторинг енергоспоживання</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" th:href="@{/}">Energy Monitor</a>
+    <nav class="nav">
+        <a th:href="@{/login}">Вхід</a>
+        <a class="button button-small" th:href="@{/register}">Реєстрація</a>
+    </nav>
+</header>
+
+<main class="page">
+    <section class="empty-state">
+        <p class="eyebrow">Домашня енергія під контролем</p>
+        <h1>Головна сторінка</h1>
+        <p>Тут буде панель моніторингу та управління енергоспоживанням.</p>
+    </section>
+</main>
+</body>
+</html>

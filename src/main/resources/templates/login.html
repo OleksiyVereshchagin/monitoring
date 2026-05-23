@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вхід | Energy Monitor</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" th:href="@{/}">Energy Monitor</a>
+    <nav class="nav">
+        <a th:href="@{/register}">Створити акаунт</a>
+    </nav>
+</header>
+
+<main class="auth-page">
+    <section class="auth-panel">
+        <p class="eyebrow">Авторизація</p>
+        <h1>Вхід</h1>
+        <form class="auth-form" data-auth-form="login">
+            <label>
+                Логін
+                <input type="text" name="username" autocomplete="username" required>
+            </label>
+            <label>
+                Пароль
+                <input type="password" name="password" autocomplete="current-password" required>
+            </label>
+            <p class="form-message" data-form-message></p>
+            <button class="button" type="submit">Увійти</button>
+        </form>
+        <p class="auth-link">Ще немає акаунта? <a th:href="@{/register}">Зареєструватися</a></p>
+    </section>
+</main>
+</body>
+</html>

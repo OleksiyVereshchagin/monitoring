@@ -1,0 +1,21 @@
+<header class="topbar" th:fragment="topbar" xmlns:th="http://www.thymeleaf.org">
+    <a class="brand" th:href="@{/}">Energy Monitor</a>
+    <nav class="nav">
+        <a class="nav-link" th:href="@{/dashboard}" data-auth-required hidden>Dashboard</a>
+        <a class="nav-link" th:href="@{/anomalies}" data-auth-required hidden>Аномалії</a>
+        <span class="nav-divider" data-auth-required hidden></span>
+
+        <span class="nav-guest" data-guest-nav>
+            <a class="nav-link" th:href="@{/login}">Вхід</a>
+            <a class="button button-small" th:href="@{/register}">Реєстрація</a>
+        </span>
+
+        <span class="nav-user" data-user-nav hidden>
+            <a class="profile-link" th:href="@{/profile}" aria-label="Профіль">
+                <span class="profile-avatar" data-profile-avatar>U</span>
+                <span class="profile-name" data-profile-name>Користувач</span>
+            </a>
+            <button class="button button-small button-outline" type="button" data-logout>Logout</button>
+        </span>
+    </nav>
+</header>

@@ -15,6 +15,26 @@ const clearAuthCookie = () => {
     document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
 };
 
+const apiFetch = async (url, options = {}) => {
+    const { token } = getAuthState();
+    const headers = {
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {})
+    };
+
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USERNAME_KEY);
+        clearAuthCookie();
+        window.location.href = "/login";
+        throw new Error("Потрібно увійти в систему.");
+    }
+
+    return response;
+};
+
 const getInitial = (username) => {
     if (!username) {
         return "U";
@@ -108,6 +128,179 @@ const bindAuthForms = () => {
     });
 };
 
+const setMessage = (element, text, success = false) => {
+    if (!element) {
+        return;
+    }
+
+    element.textContent = text;
+    element.classList.toggle("success", success);
+};
+
+const formatEnum = (value) => {
+    if (!value) {
+        return "-";
+    }
+
+    return value.toLowerCase().replaceAll("_", " ");
+};
+
+const renderHouseholds = (households) => {
+    const list = document.querySelector("[data-household-list]");
+    const select = document.querySelector("[data-household-select]");
+    const count = document.querySelector("[data-household-count]");
+
+    if (count) {
+        count.textContent = households.length;
+    }
+
+    if (select) {
+        select.innerHTML = households.length
+            ? households.map((household) => `<option value="${household.id}">${household.name}</option>`).join("")
+            : `<option value="">Спочатку створіть групу</option>`;
+    }
+
+    if (!list) {
+        return;
+    }
+
+    if (!households.length) {
+        list.innerHTML = `<p class="muted">Груп ще немає.</p>`;
+        return;
+    }
+
+    list.innerHTML = households.map((household) => `
+        <article class="entity-item">
+            <div>
+                <strong>${household.name}</strong>
+                <span>${formatEnum(household.type)}</span>
+            </div>
+        </article>
+    `).join("");
+};
+
+const renderDevices = (devices) => {
+    const list = document.querySelector("[data-device-list]");
+    const count = document.querySelector("[data-device-count]");
+
+    if (count) {
+        count.textContent = devices.filter((device) => device.active).length;
+    }
+
+    if (!list) {
+        return;
+    }
+
+    if (!devices.length) {
+        list.innerHTML = `<p class="muted">Пристроїв ще немає.</p>`;
+        return;
+    }
+
+    list.innerHTML = devices.map((device) => `
+        <article class="entity-item">
+            <div>
+                <strong>${device.name}</strong>
+                <span>${formatEnum(device.type)} · ${formatEnum(device.behaviorProfile)}</span>
+                <small>${device.householdName || "Без групи"}${device.nominalPower ? ` · ${device.nominalPower} кВт` : ""}</small>
+            </div>
+            <span class="status-pill ${device.active ? "active" : ""}">${device.active ? "active" : "inactive"}</span>
+        </article>
+    `).join("");
+};
+
+const loadCoreStructure = async () => {
+    if (!document.querySelector("[data-core-manager]")) {
+        return;
+    }
+
+    const [householdsResponse, devicesResponse] = await Promise.all([
+        apiFetch("/api/households"),
+        apiFetch("/api/devices")
+    ]);
+
+    if (!householdsResponse.ok || !devicesResponse.ok) {
+        throw new Error("Не вдалося завантажити структуру енергосистеми.");
+    }
+
+    const households = await householdsResponse.json();
+    const devices = await devicesResponse.json();
+
+    renderHouseholds(households);
+    renderDevices(devices);
+};
+
+const bindCoreForms = () => {
+    const householdForm = document.querySelector("[data-household-form]");
+    const householdMessage = document.querySelector("[data-household-message]");
+    const deviceForm = document.querySelector("[data-device-form]");
+    const deviceMessage = document.querySelector("[data-device-message]");
+
+    householdForm?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setMessage(householdMessage, "");
+
+        const payload = Object.fromEntries(new FormData(householdForm).entries());
+
+        try {
+            const response = await apiFetch("/api/households", {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error("Не вдалося створити групу.");
+            }
+
+            householdForm.reset();
+            setMessage(householdMessage, "Групу створено.", true);
+            await loadCoreStructure();
+        } catch (error) {
+            setMessage(householdMessage, error.message);
+        }
+    });
+
+    deviceForm?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setMessage(deviceMessage, "");
+
+        const formData = new FormData(deviceForm);
+        const payload = Object.fromEntries(formData.entries());
+
+        if (payload.nominalPower) {
+            payload.nominalPower = Number(payload.nominalPower);
+        } else {
+            delete payload.nominalPower;
+        }
+
+        if (payload.householdId) {
+            payload.householdId = Number(payload.householdId);
+        }
+
+        if (!payload.behaviorProfile) {
+            delete payload.behaviorProfile;
+        }
+
+        payload.active = true;
+
+        try {
+            const response = await apiFetch("/api/devices", {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error("Не вдалося додати пристрій.");
+            }
+
+            deviceForm.reset();
+            setMessage(deviceMessage, "Пристрій додано.", true);
+            await loadCoreStructure();
+        } catch (error) {
+            setMessage(deviceMessage, error.message);
+        }
+    });
+};
+
 const initConsumptionChart = () => {
     const canvas = document.getElementById("consumptionChart");
 
@@ -147,10 +340,17 @@ const initConsumptionChart = () => {
     });
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     updateAuthNavigation();
     redirectAuthorizedGuest();
     bindLogout();
     bindAuthForms();
+    bindCoreForms();
     initConsumptionChart();
+
+    try {
+        await loadCoreStructure();
+    } catch (error) {
+        console.error(error);
+    }
 });

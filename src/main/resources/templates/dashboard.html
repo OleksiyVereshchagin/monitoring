@@ -30,18 +30,107 @@
         </article>
         <article class="metric-card">
             <span>Активні пристрої</span>
-            <strong>--</strong>
+            <strong data-device-count>0</strong>
         </article>
         <article class="metric-card">
-            <span>Аномалії сьогодні</span>
-            <strong>--</strong>
+            <span>Групи об'єктів</span>
+            <strong data-household-count>0</strong>
+        </article>
+    </section>
+
+    <section class="management-grid" data-core-manager>
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <p class="eyebrow">Структура</p>
+                    <h2>Групи пристроїв</h2>
+                </div>
+            </div>
+            <form class="compact-form" data-household-form>
+                <label>
+                    Назва
+                    <input type="text" name="name" placeholder="My Apartment" required>
+                </label>
+                <label>
+                    Тип
+                    <select name="type" required>
+                        <option value="APARTMENT">Квартира</option>
+                        <option value="HOUSE">Будинок</option>
+                        <option value="OFFICE">Офіс</option>
+                        <option value="GARAGE">Гараж</option>
+                        <option value="COTTAGE">Дача</option>
+                        <option value="OTHER">Інше</option>
+                    </select>
+                </label>
+                <button class="button" type="submit">Створити групу</button>
+                <p class="form-message" data-household-message></p>
+            </form>
+            <div class="entity-list" data-household-list>
+                <p class="muted">Груп ще немає.</p>
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <p class="eyebrow">Пристрої</p>
+                    <h2>Додати пристрій</h2>
+                </div>
+            </div>
+            <form class="compact-form" data-device-form>
+                <label>
+                    Група
+                    <select name="householdId" data-household-select required>
+                        <option value="">Спочатку створіть групу</option>
+                    </select>
+                </label>
+                <label>
+                    Назва
+                    <input type="text" name="name" placeholder="Fridge" required>
+                </label>
+                <label>
+                    Тип
+                    <select name="type" required>
+                        <option value="FRIDGE">Холодильник</option>
+                        <option value="TV">Телевізор</option>
+                        <option value="AC">Кондиціонер</option>
+                        <option value="LIGHT">Освітлення</option>
+                        <option value="HEATER">Обігрівач</option>
+                        <option value="BOILER">Бойлер</option>
+                        <option value="WASHING_MACHINE">Пральна машина</option>
+                        <option value="OVEN">Духовка</option>
+                        <option value="ROUTER">Роутер</option>
+                        <option value="EV_CHARGER">Зарядка авто</option>
+                        <option value="OTHER">Інше</option>
+                    </select>
+                </label>
+                <label>
+                    Поведінка
+                    <select name="behaviorProfile">
+                        <option value="">Автоматично</option>
+                        <option value="CONSTANT">Постійна</option>
+                        <option value="CYCLIC">Циклічна</option>
+                        <option value="INTERMITTENT">Переривчаста</option>
+                        <option value="PEAK_BASED">Пікова</option>
+                    </select>
+                </label>
+                <label>
+                    Номінальна потужність, кВт
+                    <input type="number" name="nominalPower" min="0" step="0.01" placeholder="1.50">
+                </label>
+                <button class="button" type="submit">Додати пристрій</button>
+                <p class="form-message" data-device-message></p>
+            </form>
+            <div class="entity-list" data-device-list>
+                <p class="muted">Пристроїв ще немає.</p>
+            </div>
         </article>
     </section>
 
     <section class="panel">
         <div class="panel-header">
             <h2>Графік споживання</h2>
-            <span class="muted">Дані буде підключено пізніше</span>
+            <span class="muted">Дані буде підключено після генератора телеметрії</span>
         </div>
         <div class="chart-placeholder">
             <canvas id="consumptionChart" aria-label="Порожній графік споживання"></canvas>

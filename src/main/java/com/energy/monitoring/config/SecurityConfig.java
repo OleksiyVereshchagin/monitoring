@@ -1,6 +1,6 @@
 package com.energy.monitoring.config;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -45,7 +45,13 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) ->
-                                response.sendRedirect("/login"))
+                                {
+                                    if (request.getRequestURI().startsWith("/api/")) {
+                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                    } else {
+                                        response.sendRedirect("/login");
+                                    }
+                                })
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)

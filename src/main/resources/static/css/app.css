@@ -350,6 +350,9 @@ a:hover {
 .entity-list {
     display: grid;
     gap: 10px;
+    max-height: 252px; /* рівно 3 картки по ~74px + gap */
+    overflow-y: auto;
+    padding-right: 4px; /* щоб скролбар не перекривав контент */
 }
 
 .entity-item {

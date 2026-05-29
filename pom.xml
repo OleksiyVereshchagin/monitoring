@@ -85,6 +85,24 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- DL4J -->
+		<dependency>
+			<groupId>org.deeplearning4j</groupId>
+			<artifactId>deeplearning4j-nn</artifactId>
+			<version>1.0.0-M2.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.nd4j</groupId>
+			<artifactId>nd4j-native</artifactId>
+			<version>1.0.0-M2.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.nd4j</groupId>
+			<artifactId>nd4j-native</artifactId>
+			<version>1.0.0-M2.1</version>
+			<classifier>windows-x86_64</classifier>
+		</dependency>
+
 		<!-- Other -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

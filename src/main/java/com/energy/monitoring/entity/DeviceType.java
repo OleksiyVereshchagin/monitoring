@@ -1,0 +1,32 @@
+package com.energy.monitoring.entity;
+
+public enum DeviceType {
+    FRIDGE,
+    REFRIGERATOR,
+    FREEZER,
+    TV,
+    AC,
+    HEATER,
+    BOILER,
+    WASHING_MACHINE,
+    DRYER,
+    DISHWASHER,
+    OVEN,
+    STOVE,
+    MICROWAVE,
+    KETTLE,
+    COFFEE_MACHINE,
+    LIGHT,
+    LIGHTING,
+    COMPUTER,
+    LAPTOP,
+    ROUTER,
+    CHARGER,
+    VACUUM,
+    WATER_PUMP,
+    EV_CHARGER,
+    SOLAR_INVERTER,
+    BATTERY_STORAGE,
+    SMART_PLUG,
+    OTHER
+}

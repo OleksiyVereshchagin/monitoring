@@ -72,6 +72,52 @@ const redirectAuthorizedGuest = () => {
     }
 };
 
+const redirectUnauthorizedUser = () => {
+    const { token } = getAuthState();
+    const protectedPaths = ["/dashboard", "/profile", "/anomalies"];
+    const currentPath = window.location.pathname;
+
+    if (!token && protectedPaths.some(path => currentPath.startsWith(path))) {
+        window.location.href = "/login";
+    }
+};
+
+const loadDashboardMetrics = async () => {
+    if (!document.querySelector("[data-metrics]")) {
+        return;
+    }
+
+    try {
+        const readingsResponse = await apiFetch("/api/ml/current-power");
+        if (readingsResponse.ok) {
+            const data = await readingsResponse.json();
+            const current = document.querySelector("[data-current-power]");
+            if (current) {
+                current.textContent = `${data.value} кВт`;
+            }
+        }
+    } catch (error) {
+        console.error("Current power error:", error);
+    }
+
+    try {
+        const forecastResponse = await apiFetch("/api/ml/forecast");
+        if (forecastResponse.ok) {
+            const forecast = await forecastResponse.json();
+            const total = (forecast.reduce((a, b) => a + b, 0) * (10 / 60)).toFixed(2);
+            const forecastEl = document.querySelector("[data-forecast-power]");
+            if (forecastEl) {
+                forecastEl.textContent = `${total} кВт·год`;
+            }
+        }
+    } catch (error) {
+        const forecastEl = document.querySelector("[data-forecast-power]");
+        if (forecastEl) {
+            forecastEl.textContent = "-- кВт·год";
+        }
+    }
+};
+
 const bindLogout = () => {
     document.querySelectorAll("[data-logout]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -301,25 +347,164 @@ const bindCoreForms = () => {
     });
 };
 
-const initConsumptionChart = () => {
+const bindMLControls = () => {
+    const trainBtn = document.querySelector("[data-train-model]");
+    const simulateBtn = document.querySelector("[data-simulate-anomaly]");
+    const message = document.querySelector("[data-ml-message]");
+
+    trainBtn?.addEventListener("click", async () => {
+        if (!confirm("Навчання займе ~20 хвилин. Продовжити?")) return;
+        setMessage(message, "Навчання запущено. Це займе ~20 хвилин...");
+        trainBtn.disabled = true;
+
+        try {
+            const response = await apiFetch("/api/ml/train", { method: "POST" });
+            if (response.ok) {
+                setMessage(message, "Модель успішно навчена!", true);
+                await loadDashboardMetrics();
+            } else {
+                setMessage(message, "Помилка навчання.");
+            }
+        } catch (error) {
+            setMessage(message, error.message);
+        } finally {
+            trainBtn.disabled = false;
+        }
+    });
+
+    simulateBtn?.addEventListener("click", async () => {
+        const devices = document.querySelectorAll("[data-device-list] .entity-item");
+        if (!devices.length) {
+            setMessage(message, "Спочатку додайте пристрої.");
+            return;
+        }
+
+        try {
+            const devicesResponse = await apiFetch("/api/devices");
+            const deviceList = await devicesResponse.json();
+            if (!deviceList.length) {
+                setMessage(message, "Пристроїв не знайдено.");
+                return;
+            }
+
+            const deviceId = deviceList[0].id;
+            const response = await apiFetch(
+                `/api/ml/simulate-anomaly?deviceId=${deviceId}`,
+                { method: "POST" }
+            );
+
+            if (response.ok) {
+                setMessage(message, "Аномалію симульовано. Детекція відбудеться через 10 хвилин.", true);
+            }
+        } catch (error) {
+            setMessage(message, error.message);
+        }
+    });
+};
+
+const loadAnomalies = async () => {
+    const tbody = document.querySelector("[data-anomaly-list]");
+    if (!tbody) {
+        return;
+    }
+
+    try {
+        const response = await apiFetch("/api/ml/anomalies");
+        if (!response.ok) {
+            return;
+        }
+
+        const anomalies = await response.json();
+
+        if (!anomalies.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty-table">Аномалій не виявлено.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = anomalies.slice(0, 10).map(a => `
+            <tr>
+                <td>${new Date(a.timestamp).toLocaleString("uk-UA")}</td>
+                <td>${a.deviceName}</td>
+                <td>${a.actualValue} кВт</td>
+                <td>${a.expectedValue} кВт</td>
+                <td>${a.deviationPercent}%</td>
+                <td>
+                    <span class="status-pill ${a.type === "SPIKE" ? "active" : ""}">
+                        ${a.type === "SPIKE" ? "↑ Стрибок" : "↓ Падіння"}
+                    </span>
+                </td>
+            </tr>
+        `).join("");
+    } catch (error) {
+        console.error("Anomalies error:", error);
+    }
+};
+
+const startAutoRefresh = () => {
+    if (!document.querySelector("[data-metrics]")) {
+        return;
+    }
+
+    setInterval(async () => {
+        try {
+            await loadDashboardMetrics();
+            await loadAnomalies();
+            await initConsumptionChart();
+        } catch (error) {
+            console.error("Auto refresh error:", error);
+        }
+    }, 10 * 60 * 1000); // кожні 10 хвилин
+};
+
+let consumptionChart = null;
+
+const initConsumptionChart = async () => {
     const canvas = document.getElementById("consumptionChart");
 
     if (!canvas || typeof Chart === "undefined") {
         return;
     }
 
-    new Chart(canvas, {
+    // Знищити старий графік якщо є
+    if (consumptionChart) {
+        consumptionChart.destroy();
+        consumptionChart = null;
+    }
+
+    let labels = [];
+    let data = [];
+
+    try {
+        const response = await apiFetch("/api/ml/readings/hourly");
+        if (response.ok) {
+            const json = await response.json();
+            if (json.labels?.length) {
+                labels = json.labels.map(l => {
+                    const d = new Date(l);
+                    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                });
+                data = json.values;
+            }
+            const status = document.querySelector("[data-chart-status]");
+            if (status) status.textContent = "Останні 24 години";
+        }
+    } catch (error) {
+        console.error("Chart error:", error);
+    }
+
+    consumptionChart = new Chart(canvas, {
         type: "line",
         data: {
-            labels: ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
+            labels,
             datasets: [
                 {
-                    label: "Споживання",
-                    data: [0, 0, 0, 0, 0, 0],
+                    label: "Споживання (кВт)",
+                    data,
                     borderColor: "#0f766e",
                     backgroundColor: "rgba(15, 118, 110, 0.12)",
                     fill: true,
-                    tension: 0.35
+                    tension: 0.35,
+                    pointRadius: 2
                 }
             ]
         },
@@ -327,14 +512,10 @@ const initConsumptionChart = () => {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    display: false
-                }
+                legend: { display: false }
             },
             scales: {
-                y: {
-                    beginAtZero: true
-                }
+                y: { beginAtZero: true }
             }
         }
     });
@@ -343,13 +524,18 @@ const initConsumptionChart = () => {
 document.addEventListener("DOMContentLoaded", async () => {
     updateAuthNavigation();
     redirectAuthorizedGuest();
+    redirectUnauthorizedUser();
     bindLogout();
     bindAuthForms();
     bindCoreForms();
-    initConsumptionChart();
+    bindMLControls();
+    await initConsumptionChart();
 
     try {
         await loadCoreStructure();
+        await loadDashboardMetrics();
+        await loadAnomalies();
+        startAutoRefresh();
     } catch (error) {
         console.error(error);
     }

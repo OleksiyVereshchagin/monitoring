@@ -19,4 +19,23 @@ public interface ReadingRepository extends JpaRepository<Reading, Long>, JpaSpec
     List<Double> findAggregatedByDevicesOrderByTimestamp(@Param("devices") List<Device> devices);
 
     List<Reading> findByDeviceAndTimestampAfterOrderByTimestampAsc(Device device, LocalDateTime timestamp);
+
+    @Query(value = "SELECT date_trunc('hour', r.timestamp) as hour, SUM(r.power_consumption) " +
+            "FROM readings r " +
+            "WHERE r.device_id IN " +
+            "(SELECT id FROM devices WHERE user_id = :userId) " +
+            "AND r.timestamp >= :from " +
+            "GROUP BY date_trunc('hour', r.timestamp) " +
+            "ORDER BY hour ASC",
+            nativeQuery = true)
+    List<Object[]> findHourlyAggregated(@Param("userId") Long userId,
+                                        @Param("from") LocalDateTime from);
+
+    @Query(value = "SELECT SUM(r.power_consumption) FROM readings r " +
+            "JOIN devices d ON r.device_id = d.id " +
+            "WHERE d.user_id = :userId " +
+            "AND r.timestamp >= :from",
+            nativeQuery = true)
+    Double findTotalConsumptionSince(@Param("userId") Long userId,
+                                     @Param("from") LocalDateTime from);
 }

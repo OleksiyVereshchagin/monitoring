@@ -37,6 +37,7 @@ public class TelemetryService {
     private final HouseholdRepository householdRepository;
     private final ReadingRepository readingRepository;
     private final UserRepository userRepository;
+    private final DataGeneratorService dataGeneratorService;
 
     @Transactional
     public HouseholdResponse createHousehold(HouseholdRequest request, Authentication authentication) {
@@ -90,7 +91,11 @@ public class TelemetryService {
                 .active(request.active() != null ? request.active() : true)
                 .build();
 
-        return toDeviceResponse(deviceRepository.save(device));
+        DeviceResponse response = toDeviceResponse(deviceRepository.save(device));
+
+        dataGeneratorService.seedForUser(user.getId());
+
+        return response;
     }
 
     @Transactional(readOnly = true)

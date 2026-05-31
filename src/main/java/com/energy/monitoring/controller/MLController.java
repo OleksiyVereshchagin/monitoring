@@ -10,11 +10,10 @@ import com.energy.monitoring.service.MLService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -109,5 +108,45 @@ public class MLController {
         com.energy.monitoring.entity.User user =
                 (com.energy.monitoring.entity.User) authentication.getPrincipal();
         return user.getId();
+    }
+
+
+    @PostMapping("/simulate-anomaly")
+    public ResponseEntity<Map<String, String>> simulateAnomaly(
+            @RequestParam Long deviceId,
+            Authentication authentication) {
+        Long userId = getUserId(authentication);
+        mlService.simulateAnomaly(deviceId, userId);
+        return ResponseEntity.ok(Map.of("status", "ok", "message", "Аномалію вставлено."));
+    }
+
+    @GetMapping("/readings/hourly")
+    public ResponseEntity<Map<String, Object>> hourlyReadings(Authentication authentication) {
+        Long userId = getUserId(authentication);
+        List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+
+        LocalDateTime from = LocalDateTime.now().minusHours(24);
+
+        List<Object[]> raw = readingRepository.findHourlyAggregated(userId, from);
+        List<String> labels = new ArrayList<>();
+        List<Double> values = new ArrayList<>();
+
+        for (Object[] row : raw) {
+            labels.add(row[0].toString());
+            values.add(((Number) row[1]).doubleValue());
+        }
+
+        return ResponseEntity.ok(Map.of("labels", labels, "values", values));
+    }
+
+
+    @GetMapping("/current-power")
+    public ResponseEntity<Map<String, Object>> currentPower(Authentication authentication) {
+        Long userId = getUserId(authentication);
+        LocalDateTime from = LocalDateTime.now().minusMinutes(10);
+        Double total = readingRepository.findTotalConsumptionSince(userId, from);
+        return ResponseEntity.ok(Map.of(
+                "value", total != null ? String.format("%.2f", total) : "0.00"
+        ));
     }
 }

@@ -34,9 +34,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        log.info("JwtAuthFilter: uri={}, token={}",
-                request.getRequestURI(),
-                extractToken(request) != null ? "present" : "null");
+//        log.info("JwtAuthFilter: uri={}, token={}",
+//                request.getRequestURI(),
+//                extractToken(request) != null ? "present" : "null");
 
         final String token = extractToken(request);
 

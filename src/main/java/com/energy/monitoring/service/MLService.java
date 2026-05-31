@@ -38,8 +38,6 @@ public class MLService {
 
     private static final int WINDOW_SIZE = 144;   // 24 год × 6 (кожні 10 хв)
     private static final int FORECAST_SIZE = 144;  // прогноз на 24 год
-    private static final String MODEL_PATH = "src/main/resources/model/lstm_model.zip";
-    private static final String NORM_PATH = "src/main/resources/model/normalization.properties";
 
     private final DeviceRepository deviceRepository;
     private final ReadingRepository readingRepository;
@@ -48,6 +46,14 @@ public class MLService {
     private MultiLayerNetwork model;
     private double minValue = 0.0;
     private double maxValue = 1.0;
+
+    private String getModelPath(Long userId) {
+        return "src/main/resources/model/lstm_model_" + userId + ".zip";
+    }
+
+    private String getNormPath(Long userId) {
+        return "src/main/resources/model/normalization_" + userId + ".properties";
+    }
 
     // ── Навчання ────────────────────────────────────────────────────────────
 
@@ -77,8 +83,8 @@ public class MLService {
             }
         }
 
-        model = buildModel(); // ← це було закоментовано — це і була проблема
-        int epochs = 10;
+        model = buildModel();
+        int epochs = 7;
         int batchSize = 32;
 
         for (int epoch = 0; epoch < epochs; epoch++) {
@@ -101,23 +107,20 @@ public class MLService {
             }
         }
 
-        saveModel();
-        log.info("MLService: навчання завершено, модель збережено.");
+        saveModel(userId);
+        log.info("MLService: навчання завершено, модель збережено для userId={}", userId);
     }
 
     // ── Прогноз ─────────────────────────────────────────────────────────────
 
     public List<Double> forecast(Long userId) {
-        if (model == null) {
-            loadModel();
-        }
+        loadModelIfNeeded(userId);
 
         List<Double> series = loadAggregatedSeries(userId);
         if (series.size() < WINDOW_SIZE) {
             throw new IllegalStateException("Недостатньо даних для прогнозу.");
         }
 
-        // Беремо останні WINDOW_SIZE точок
         List<Double> window = series.subList(series.size() - WINDOW_SIZE, series.size());
         double[] normalized = normalize(window);
 
@@ -128,7 +131,6 @@ public class MLService {
 
         INDArray output = model.output(input);
 
-        // Денормалізація
         List<Double> result = new java.util.ArrayList<>();
         for (int t = 0; t < FORECAST_SIZE; t++) {
             double val = output.getDouble(0, 0, t);
@@ -141,9 +143,7 @@ public class MLService {
     // ── Розпізнання аномалій ────────────────────────────────────────────────────
 
     public List<Anomaly> detectAnomalies(Long userId) {
-        if (model == null) {
-            loadModel();
-        }
+        loadModelIfNeeded(userId);
 
         List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         if (devices.isEmpty()) {
@@ -218,6 +218,28 @@ public class MLService {
         return detected;
     }
 
+    // ── Симуляція аномалійgenerateCurrentReading ────────────────────────────────────────────────────
+
+
+    public void simulateAnomaly(Long deviceId, Long userId) {
+        Device device = deviceRepository.findByIdAndUserId(deviceId, userId)
+                .orElseThrow(() -> new RuntimeException("Пристрій не знайдено"));
+
+        BigDecimal nominal = device.getNominalPower() != null
+                ? device.getNominalPower()
+                : BigDecimal.valueOf(1.0);
+
+        Reading anomalousReading = Reading.builder()
+                .device(device)
+                .timestamp(LocalDateTime.now())
+                .powerConsumption(nominal.multiply(BigDecimal.valueOf(10)))
+                .source("SIMULATED_ANOMALY")
+                .build();
+
+        readingRepository.save(anomalousReading);
+        log.info("MLService: симульовано аномалію для '{}'", device.getName());
+    }
+
     // ── Допоміжні методи ────────────────────────────────────────────────────
 
     private List<Double> loadAggregatedSeries(Long userId) {
@@ -279,43 +301,42 @@ public class MLService {
         return value * (maxValue - minValue) + minValue;
     }
 
-    private void saveModel() {
+    private void saveModel(Long userId) {
         try {
-            File file = new File(MODEL_PATH);
+            File file = new File(getModelPath(userId));
             file.getParentFile().mkdirs();
             ModelSerializer.writeModel(model, file, true);
 
-            // Зберегти нормалізацію
             java.util.Properties props = new java.util.Properties();
             props.setProperty("minValue", String.valueOf(minValue));
             props.setProperty("maxValue", String.valueOf(maxValue));
-            try (var out = new java.io.FileOutputStream(NORM_PATH)) {
+            try (var out = new java.io.FileOutputStream(getNormPath(userId))) {
                 props.store(out, "Normalization params");
             }
         } catch (IOException e) {
-            log.error("MLService: не вдалося зберегти модель", e);
+            log.error("MLService: не вдалося зберегти модель для userId={}", userId, e);
         }
     }
 
-    private void loadModel() {
-        File file = new File(MODEL_PATH);
+    private void loadModelIfNeeded(Long userId) {
+        File file = new File(getModelPath(userId));
         if (!file.exists()) {
-            throw new IllegalStateException("Модель не знайдена. Спочатку запустіть навчання.");
+            throw new IllegalStateException(
+                    "Модель для userId=" + userId + " не знайдена. Спочатку запустіть навчання.");
         }
         try {
             model = ModelSerializer.restoreMultiLayerNetwork(file);
 
-            // Завантажити нормалізацію
             java.util.Properties props = new java.util.Properties();
-            try (var in = new java.io.FileInputStream(NORM_PATH)) {
+            try (var in = new java.io.FileInputStream(getNormPath(userId))) {
                 props.load(in);
                 minValue = Double.parseDouble(props.getProperty("minValue", "0.0"));
                 maxValue = Double.parseDouble(props.getProperty("maxValue", "1.0"));
             }
 
-            log.info("MLService: модель завантажена, min={}, max={}", minValue, maxValue);
+            log.info("MLService: модель завантажена для userId={}, min={}, max={}", userId, minValue, maxValue);
         } catch (IOException e) {
-            throw new RuntimeException("Не вдалося завантажити модель", e);
+            throw new RuntimeException("Не вдалося завантажити модель для userId=" + userId, e);
         }
     }
 }

@@ -9,24 +9,24 @@
     <script defer th:src="@{/js/auth.js}"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body data-auth-page="protected">
 <header th:replace="~{fragments/topbar :: topbar}"></header>
 
 <main class="page">
     <section class="page-heading">
         <p class="eyebrow">Огляд системи</p>
         <h1>Dashboard</h1>
-        <p>Тут буде відображатися поточне та прогнозоване енергоспоживання будинку.</p>
+        <p>Тут відображається поточне та прогнозоване енергоспоживання будинку.</p>
     </section>
 
-    <section class="stats-grid" aria-label="Основні показники">
+    <section class="stats-grid" aria-label="Основні показники" data-metrics>
         <article class="metric-card">
             <span>Поточне споживання</span>
-            <strong>-- кВт</strong>
+            <strong data-current-power>-- кВт</strong>
         </article>
         <article class="metric-card">
             <span>Прогноз на 24 год</span>
-            <strong>-- кВт·год</strong>
+            <strong data-forecast-power>-- кВт·год</strong>
         </article>
         <article class="metric-card">
             <span>Активні пристрої</span>
@@ -127,13 +127,56 @@
         </article>
     </section>
 
+    <section class="panel" style="margin-top: 0; margin-bottom: 24px;">
+        <div class="panel-header">
+            <div>
+                <p class="eyebrow">Нейромережа</p>
+                <h2>Управління моделлю</h2>
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="button" type="button" data-train-model>
+                Навчити модель
+            </button>
+            <button class="button button-outline" type="button" data-simulate-anomaly>
+                Симулювати аномалію
+            </button>
+            <p class="form-message" data-ml-message style="width: 100%;"></p>
+        </div>
+    </section>
+
     <section class="panel">
         <div class="panel-header">
             <h2>Графік споживання</h2>
-            <span class="muted">Дані буде підключено після генератора телеметрії</span>
+            <span class="muted" data-chart-status>Завантаження...</span>
         </div>
         <div class="chart-placeholder">
-            <canvas id="consumptionChart" aria-label="Порожній графік споживання"></canvas>
+            <canvas id="consumptionChart" aria-label="Графік споживання"></canvas>
+        </div>
+    </section>
+
+    <section class="panel" style="margin-top: 24px;">
+        <div class="panel-header">
+            <h2>Останні аномалії</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle anomaly-table">
+                <thead>
+                <tr>
+                    <th>Час</th>
+                    <th>Пристрій</th>
+                    <th>Фактично</th>
+                    <th>Очікувалось</th>
+                    <th>Відхилення</th>
+                    <th>Тип</th>
+                </tr>
+                </thead>
+                <tbody data-anomaly-list>
+                <tr>
+                    <td colspan="6" class="empty-table">Аномалій не виявлено.</td>
+                </tr>
+                </tbody>
+            </table>
         </div>
     </section>
 </main>

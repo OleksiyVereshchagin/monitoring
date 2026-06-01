@@ -11,5 +11,7 @@ import java.util.List;
 @Repository
 public interface AnomalyRepository extends JpaRepository<Anomaly, Long> {
     List<Anomaly> findAllByDeviceInOrderByTimestampDesc(List<Device> devices);
+    Anomaly findTopByDeviceInOrderByDetectedAtDesc(List<Device> devices);
     boolean existsByDeviceAndTimestamp(Device device, LocalDateTime timestamp);
+    long countByDeviceIn(List<Device> devices);
 }

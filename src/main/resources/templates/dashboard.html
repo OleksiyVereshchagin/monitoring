@@ -14,19 +14,20 @@
 
 <main class="page">
     <section class="page-heading">
-        <p class="eyebrow">Огляд системи</p>
-        <h1>Dashboard</h1>
-        <p>Тут відображається поточне та прогнозоване енергоспоживання будинку.</p>
+        <p class="eyebrow">Домашня енергосистема</p>
+        <h1>Моніторинг і прогноз споживання</h1>
+        <p>Панель показує поточне енергоспоживання, прогноз нейромережі на 24 години, виявлені аномалії та практичні рекомендації.</p>
     </section>
 
     <section class="stats-grid" aria-label="Основні показники" data-metrics>
         <article class="metric-card">
             <span>Поточне споживання</span>
             <strong data-current-power>-- кВт</strong>
+            <small class="metric-hint" data-current-load-status>Очікуємо дані...</small>
         </article>
         <article class="metric-card">
-            <span>Прогноз на 24 год</span>
-            <strong data-forecast-power>-- кВт·год</strong>
+            <span>Прогноз на 24 години</span>
+            <strong data-forecast-power>Немає прогнозу</strong>
         </article>
         <article class="metric-card">
             <span>Активні пристрої</span>
@@ -38,7 +39,79 @@
         </article>
     </section>
 
-    <section class="management-grid" data-core-manager>
+    <section class="insight-grid">
+        <article class="panel model-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="eyebrow">Нейромережа</p>
+                    <h2>Стан моделі</h2>
+                </div>
+                <span class="status-pill" data-model-status-pill>Перевірка</span>
+            </div>
+            <p class="model-message" data-model-message>Завантажуємо стан моделі...</p>
+            <dl class="model-metrics">
+                <div>
+                    <dt>Останнє навчання</dt>
+                    <dd data-model-trained-at>--</dd>
+                </div>
+                <div>
+                    <dt>Точок у датасеті</dt>
+                    <dd data-model-points>--</dd>
+                </div>
+            </dl>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <p class="eyebrow">Висновки системи</p>
+                    <h2>Рекомендації</h2>
+                </div>
+            </div>
+            <ul class="recommendation-list" data-recommendations>
+                <li>Завантажуємо дані для аналізу...</li>
+            </ul>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Графік споживання</h2>
+            <span class="muted" data-chart-status>Завантаження...</span>
+        </div>
+        <div class="chart-placeholder">
+            <canvas id="consumptionChart" aria-label="Графік споживання"></canvas>
+        </div>
+    </section>
+
+    <section class="panel" style="margin-top: 24px;">
+        <div class="panel-header">
+            <h2>Останні аномалії</h2>
+            <a class="text-link" th:href="@{/anomalies}">Повна історія</a>
+        </div>
+        <p class="muted" data-anomaly-status>Показуємо 5 останніх аномалій. SPIKE - різке перевищення, DROP - різке падіння.</p>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle anomaly-table">
+                <thead>
+                <tr>
+                    <th>Час</th>
+                    <th>Пристрій</th>
+                    <th>Фактично</th>
+                    <th>Очікувалось</th>
+                    <th>Відхилення</th>
+                    <th>Тип</th>
+                </tr>
+                </thead>
+                <tbody data-anomaly-list data-anomaly-limit="5">
+                <tr>
+                    <td colspan="6" class="empty-table">Аномалій не виявлено.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="management-grid" data-core-manager style="margin-top: 24px;">
         <article class="panel">
             <div class="panel-header">
                 <div>
@@ -49,7 +122,7 @@
             <form class="compact-form" data-household-form>
                 <label>
                     Назва
-                    <input type="text" name="name" placeholder="My Apartment" required>
+                    <input type="text" name="name" placeholder="Моя квартира" required>
                 </label>
                 <label>
                     Тип
@@ -86,7 +159,7 @@
                 </label>
                 <label>
                     Назва
-                    <input type="text" name="name" placeholder="Fridge" required>
+                    <input type="text" name="name" placeholder="Холодильник" required>
                 </label>
                 <label>
                     Тип
@@ -127,56 +200,18 @@
         </article>
     </section>
 
-    <section class="panel" style="margin-top: 0; margin-bottom: 24px;">
+    <section class="panel service-panel">
         <div class="panel-header">
             <div>
-                <p class="eyebrow">Нейромережа</p>
-                <h2>Управління моделлю</h2>
+                <p class="eyebrow">Службові дії</p>
+                <h2>Демо та перевірка</h2>
             </div>
         </div>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <button class="button" type="button" data-train-model>
-                Навчити модель
-            </button>
-            <button class="button button-outline" type="button" data-simulate-anomaly>
-                Симулювати аномалію
-            </button>
-            <p class="form-message" data-ml-message style="width: 100%;"></p>
-        </div>
-    </section>
-
-    <section class="panel">
-        <div class="panel-header">
-            <h2>Графік споживання</h2>
-            <span class="muted" data-chart-status>Завантаження...</span>
-        </div>
-        <div class="chart-placeholder">
-            <canvas id="consumptionChart" aria-label="Графік споживання"></canvas>
-        </div>
-    </section>
-
-    <section class="panel" style="margin-top: 24px;">
-        <div class="panel-header">
-            <h2>Останні аномалії</h2>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle anomaly-table">
-                <thead>
-                <tr>
-                    <th>Час</th>
-                    <th>Пристрій</th>
-                    <th>Фактично</th>
-                    <th>Очікувалось</th>
-                    <th>Відхилення</th>
-                    <th>Тип</th>
-                </tr>
-                </thead>
-                <tbody data-anomaly-list>
-                <tr>
-                    <td colspan="6" class="empty-table">Аномалій не виявлено.</td>
-                </tr>
-                </tbody>
-            </table>
+        <p class="muted">Для демонстрації використовується готова модель і підготовлені історичні 10-хвилинні readings. Повторне навчання приховано з основного інтерфейсу.</p>
+        <div class="service-actions">
+            <button class="button" type="button" data-use-demo-model>Використати готову демо-модель</button>
+            <button class="button button-outline" type="button" data-simulate-anomaly>Симулювати аномалію</button>
+            <p class="form-message" data-ml-message></p>
         </div>
     </section>
 </main>

@@ -1,6 +1,7 @@
 package com.energy.monitoring.config;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -48,6 +49,8 @@ public class SecurityConfig {
                                 {
                                     if (request.getRequestURI().startsWith("/api/")) {
                                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                                        response.getWriter().write("{\"message\":\"Unauthorized\"}");
                                     } else {
                                         response.sendRedirect("/login");
                                     }

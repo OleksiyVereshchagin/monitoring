@@ -91,9 +91,10 @@ public class TelemetryService {
                 .active(request.active() != null ? request.active() : true)
                 .build();
 
-        DeviceResponse response = toDeviceResponse(deviceRepository.save(device));
+        Device savedDevice = deviceRepository.save(device);
+        DeviceResponse response = toDeviceResponse(savedDevice);
 
-        dataGeneratorService.seedForUser(user.getId());
+        dataGeneratorService.seedForDevice(savedDevice.getId());
 
         return response;
     }

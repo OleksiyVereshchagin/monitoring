@@ -11,6 +11,7 @@ import java.util.Optional;
 @Repository
 public interface DeviceRepository extends JpaRepository<Device, Long> {
     List<Device> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+    List<Device> findAllByUserIdAndActiveTrueOrderByCreatedAtDesc(Long userId);
     List<Device> findAllByUserIdAndHouseholdIdOrderByCreatedAtDesc(Long userId, Long householdId);
     Optional<Device> findByIdAndUserId(Long id, Long userId);
     List<Device> findAllByActiveTrue();

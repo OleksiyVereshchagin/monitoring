@@ -8,30 +8,37 @@
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <script defer th:src="@{/js/auth.js}"></script>
 </head>
-<body>
+<body data-auth-page="protected">
 <header th:replace="~{fragments/topbar :: topbar}"></header>
 
 <main class="page">
     <section class="page-heading">
         <p class="eyebrow">Контроль відхилень</p>
         <h1>Журнал аномалій</h1>
-        <p>Таблиця буде заповнюватися після підключення MLService та телеметрії.</p>
+        <p>Повна історія зафіксованих відхилень. Дані зберігаються в базі й не зникають після оновлення сторінки.</p>
     </section>
 
     <section class="panel">
+        <div class="panel-header">
+            <h2>Усі аномалії</h2>
+            <a class="text-link" th:href="@{/dashboard}">Назад до dashboard</a>
+        </div>
+        <p class="muted" data-anomaly-status>SPIKE - різке перевищення, DROP - різке падіння.</p>
         <div class="table-responsive">
             <table class="table table-hover align-middle anomaly-table">
                 <thead>
                 <tr>
                     <th>Час</th>
                     <th>Пристрій</th>
-                    <th>Показник</th>
-                    <th>Статус</th>
+                    <th>Фактично</th>
+                    <th>Очікувалось</th>
+                    <th>Відхилення</th>
+                    <th>Тип</th>
                 </tr>
                 </thead>
-                <tbody>
+                <tbody data-anomaly-list data-anomaly-limit="all">
                 <tr>
-                    <td colspan="4" class="empty-table">Аномалій поки не зафіксовано.</td>
+                    <td colspan="6" class="empty-table">Аномалій поки не зафіксовано.</td>
                 </tr>
                 </tbody>
             </table>

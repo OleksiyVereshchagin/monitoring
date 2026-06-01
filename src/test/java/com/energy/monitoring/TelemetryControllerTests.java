@@ -119,6 +119,17 @@ class TelemetryControllerTests {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void modelStatusReturnsNotTrainedForNewUser() throws Exception {
+        String token = registerAndGetToken("ml-status-" + UUID.randomUUID());
+
+        mockMvc.perform(get("/api/ml/model-status")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NOT_TRAINED"))
+                .andExpect(jsonPath("$.modelReady").value(false));
+    }
+
     private String registerAndGetToken(String username) throws Exception {
         String response = mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)

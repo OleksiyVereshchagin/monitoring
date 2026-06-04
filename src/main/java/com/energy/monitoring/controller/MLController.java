@@ -1,11 +1,13 @@
 package com.energy.monitoring.controller;
 
 import com.energy.monitoring.dto.AnomalyResponse;
+import com.energy.monitoring.dto.DeviceContributionResponse;
 import com.energy.monitoring.entity.Anomaly;
 import com.energy.monitoring.entity.Device;
 import com.energy.monitoring.repository.AnomalyRepository;
 import com.energy.monitoring.repository.DeviceRepository;
 import com.energy.monitoring.repository.ReadingRepository;
+import com.energy.monitoring.service.DataGeneratorService;
 import com.energy.monitoring.service.MLService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +24,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MLController {
 
+    private static final String SIMULATED_ANOMALY_SOURCE = "SIMULATED_ANOMALY";
+
     private final MLService mlService;
     private final DeviceRepository deviceRepository;
     private final ReadingRepository readingRepository;
     private final AnomalyRepository anomalyRepository;
+    private final DataGeneratorService dataGeneratorService;
 
     @PostMapping("/train")
     public ResponseEntity<Map<String, String>> train(Authentication authentication) {
@@ -37,6 +42,7 @@ public class MLController {
     @GetMapping("/forecast")
     public ResponseEntity<List<Double>> forecast(Authentication authentication) {
         Long userId = getUserId(authentication);
+        dataGeneratorService.ensureRecentDataForUser(userId);
         List<Double> result = mlService.forecast(userId);
         return ResponseEntity.ok(result);
     }
@@ -44,9 +50,10 @@ public class MLController {
     @GetMapping("/dataset-info")
     public ResponseEntity<Map<String, Object>> datasetInfo(Authentication authentication) {
         Long userId = getUserId(authentication);
+        dataGeneratorService.ensureRecentDataForUser(userId);
         List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         List<Double> series = readingRepository
-                .findAggregatedByDevicesOrderByTimestamp(devices)
+                .findAggregatedByUserIdOrderByTimestamp(userId, SIMULATED_ANOMALY_SOURCE)
                 .stream()
                 .map(Double::valueOf)
                 .toList();
@@ -84,7 +91,9 @@ public class MLController {
     }
 
     @GetMapping("/anomalies")
-    public ResponseEntity<List<AnomalyResponse>> getAnomalies(Authentication authentication) {
+    public ResponseEntity<List<AnomalyResponse>> getAnomalies(
+            @RequestParam(defaultValue = "0") int limit,
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         List<Anomaly> anomalies = anomalyRepository.findAllByDeviceInOrderByTimestampDesc(devices);
@@ -101,6 +110,9 @@ public class MLController {
                         a.getDetectedAt()
                 ))
                 .toList();
+        if (limit > 0) {
+            response = response.stream().limit(limit).toList();
+        }
         return ResponseEntity.ok(response);
     }
 
@@ -123,17 +135,18 @@ public class MLController {
     @GetMapping("/readings/hourly")
     public ResponseEntity<Map<String, Object>> hourlyReadings(Authentication authentication) {
         Long userId = getUserId(authentication);
+        dataGeneratorService.ensureRecentDataForUser(userId);
         List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
 
         LocalDateTime from = LocalDateTime.now().minusHours(24);
 
-        List<Object[]> raw = readingRepository.findHourlyAggregated(userId, from);
+        List<Object[]> raw = readingRepository.findHourlyAggregated(userId, from, SIMULATED_ANOMALY_SOURCE);
         List<String> labels = new ArrayList<>();
         List<Double> values = new ArrayList<>();
 
         for (Object[] row : raw) {
             labels.add(row[0].toString());
-            values.add(((Number) row[1]).doubleValue());
+            values.add(row[1] != null ? ((Number) row[1]).doubleValue() : null);
         }
 
         return ResponseEntity.ok(Map.of("labels", labels, "values", values));
@@ -143,10 +156,43 @@ public class MLController {
     @GetMapping("/current-power")
     public ResponseEntity<Map<String, Object>> currentPower(Authentication authentication) {
         Long userId = getUserId(authentication);
-        LocalDateTime from = LocalDateTime.now().minusMinutes(10);
-        Double total = readingRepository.findTotalConsumptionSince(userId, from);
+        dataGeneratorService.ensureRecentDataForUser(userId);
+        Double total = readingRepository.findLatestTotalConsumption(userId, SIMULATED_ANOMALY_SOURCE);
         return ResponseEntity.ok(Map.of(
                 "value", total != null ? String.format("%.2f", total) : "0.00"
         ));
+    }
+
+    @GetMapping("/device-contribution")
+    public ResponseEntity<List<DeviceContributionResponse>> deviceContribution(Authentication authentication) {
+        Long userId = getUserId(authentication);
+        dataGeneratorService.ensureRecentDataForUser(userId);
+
+        LocalDateTime from = LocalDateTime.now().minusHours(24);
+        List<Object[]> raw = readingRepository.findDeviceContribution(userId, from, SIMULATED_ANOMALY_SOURCE);
+        double totalKwh = raw.stream()
+                .mapToDouble(row -> ((Number) row[3]).doubleValue())
+                .sum();
+
+        List<DeviceContributionResponse> response = raw.stream()
+                .limit(5)
+                .map(row -> {
+                    double deviceKwh = ((Number) row[3]).doubleValue();
+                    double percentage = totalKwh > 0 ? (deviceKwh * 100.0 / totalKwh) : 0.0;
+                    return new DeviceContributionResponse(
+                            ((Number) row[0]).longValue(),
+                            String.valueOf(row[1]),
+                            String.valueOf(row[2]),
+                            round(deviceKwh),
+                            round(percentage)
+                    );
+                })
+                .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+    private double round(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 }

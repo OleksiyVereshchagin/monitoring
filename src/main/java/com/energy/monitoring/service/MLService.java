@@ -30,6 +30,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Service
@@ -114,37 +115,41 @@ public class MLService {
     // ── Прогноз ─────────────────────────────────────────────────────────────
 
     public List<Double> forecast(Long userId) {
-        loadModelIfNeeded(userId);
+        try {
+            loadModelIfNeeded(userId);
 
-        List<Double> series = loadAggregatedSeries(userId);
-        if (series.size() < WINDOW_SIZE) {
-            throw new IllegalStateException("Недостатньо даних для прогнозу.");
+            List<Double> series = loadAggregatedSeries(userId);
+            if (series.size() < WINDOW_SIZE) {
+                throw new IllegalStateException("Недостатньо даних для прогнозу.");
+            }
+
+            List<Double> window = series.subList(series.size() - WINDOW_SIZE, series.size());
+            double[] normalized = normalize(window);
+
+            INDArray input = Nd4j.zeros(1, 1, WINDOW_SIZE);
+            for (int t = 0; t < WINDOW_SIZE; t++) {
+                input.putScalar(new int[]{0, 0, t}, normalized[t]);
+            }
+
+            INDArray output = model.output(input);
+
+            List<Double> result = new java.util.ArrayList<>();
+            for (int t = 0; t < FORECAST_SIZE; t++) {
+                double val = output.getDouble(0, 0, t);
+                result.add(safeForecastValue(denormalize(val)));
+            }
+
+            return result;
+        } catch (RuntimeException e) {
+            log.warn("MLService: LSTM forecast unavailable for userId={}, using stable fallback: {}",
+                    userId, e.getMessage());
+            return fallbackForecast(userId);
         }
-
-        List<Double> window = series.subList(series.size() - WINDOW_SIZE, series.size());
-        double[] normalized = normalize(window);
-
-        INDArray input = Nd4j.zeros(1, 1, WINDOW_SIZE);
-        for (int t = 0; t < WINDOW_SIZE; t++) {
-            input.putScalar(new int[]{0, 0, t}, normalized[t]);
-        }
-
-        INDArray output = model.output(input);
-
-        List<Double> result = new java.util.ArrayList<>();
-        for (int t = 0; t < FORECAST_SIZE; t++) {
-            double val = output.getDouble(0, 0, t);
-            result.add(denormalize(val));
-        }
-
-        return result;
     }
 
     // ── Розпізнання аномалій ────────────────────────────────────────────────────
 
     public List<Anomaly> detectAnomalies(Long userId) {
-        loadModelIfNeeded(userId);
-
         List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         if (devices.isEmpty()) {
             return List.of();
@@ -156,7 +161,10 @@ public class MLService {
         for (Device device : devices) {
             // Отримуємо readings за останні 24 години
             List<Reading> recentReadings = readingRepository
-                    .findByDeviceAndTimestampAfterOrderByTimestampAsc(device, from);
+                    .findByDeviceAndTimestampAfterOrderByTimestampAsc(device, from)
+                    .stream()
+                    .filter(reading -> !"SIMULATED_ANOMALY".equals(reading.getSource()))
+                    .toList();
 
             if (recentReadings.isEmpty()) {
                 continue;
@@ -165,7 +173,10 @@ public class MLService {
             // Середнє і стандартне відхилення за останні 14 днів
             LocalDateTime statsFrom = LocalDateTime.now().minusDays(14);
             List<Reading> historyReadings = readingRepository
-                    .findByDeviceAndTimestampAfterOrderByTimestampAsc(device, statsFrom);
+                    .findByDeviceAndTimestampAfterOrderByTimestampAsc(device, statsFrom)
+                    .stream()
+                    .filter(reading -> !"SIMULATED_ANOMALY".equals(reading.getSource()))
+                    .toList();
 
             if (historyReadings.size() < 10) {
                 continue;
@@ -225,19 +236,27 @@ public class MLService {
         Device device = deviceRepository.findByIdAndUserId(deviceId, userId)
                 .orElseThrow(() -> new RuntimeException("Пристрій не знайдено"));
 
-        BigDecimal nominal = device.getNominalPower() != null
-                ? device.getNominalPower()
-                : BigDecimal.valueOf(1.0);
+        BigDecimal expected = estimateExpectedValue(device);
+        AnomalyType type = ThreadLocalRandom.current().nextBoolean() ? AnomalyType.SPIKE : AnomalyType.DROP;
+        BigDecimal actual = simulateActualValue(expected, type);
+        BigDecimal safeExpected = expected.compareTo(BigDecimal.ZERO) > 0 ? expected : BigDecimal.ONE;
+        BigDecimal deviationPercent = actual.subtract(expected)
+                .abs()
+                .divide(safeExpected, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, RoundingMode.HALF_UP);
 
-        Reading anomalousReading = Reading.builder()
+        Anomaly anomaly = Anomaly.builder()
                 .device(device)
                 .timestamp(LocalDateTime.now())
-                .powerConsumption(nominal.multiply(BigDecimal.valueOf(10)))
-                .source("SIMULATED_ANOMALY")
+                .actualValue(actual)
+                .expectedValue(expected)
+                .deviationPercent(deviationPercent)
+                .type(type)
                 .build();
 
-        readingRepository.save(anomalousReading);
-        log.info("MLService: симульовано аномалію для '{}'", device.getName());
+        anomalyRepository.save(anomaly);
+        log.info("MLService: simulated {} anomaly for '{}'", type, device.getName());
     }
 
     // ── Допоміжні методи ────────────────────────────────────────────────────
@@ -249,7 +268,7 @@ public class MLService {
         }
 
         List<Double> series = readingRepository
-                .findAggregatedByDevicesOrderByTimestamp(devices)
+                .findAggregatedByUserIdOrderByTimestamp(userId, "SIMULATED_ANOMALY")
                 .stream()
                 .map(Double::valueOf)
                 .toList();
@@ -261,6 +280,78 @@ public class MLService {
         }
 
         return series;
+    }
+
+    private BigDecimal estimateExpectedValue(Device device) {
+        LocalDateTime statsFrom = LocalDateTime.now().minusDays(14);
+        List<Reading> historyReadings = readingRepository
+                .findByDeviceAndTimestampAfterOrderByTimestampAsc(device, statsFrom)
+                .stream()
+                .filter(reading -> !"SIMULATED_ANOMALY".equals(reading.getSource()))
+                .toList();
+
+        if (historyReadings.size() >= 10) {
+            double mean = historyReadings.stream()
+                    .mapToDouble(reading -> reading.getPowerConsumption().doubleValue())
+                    .average()
+                    .orElse(0);
+            return BigDecimal.valueOf(Math.max(mean, 0.01)).setScale(4, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal nominal = device.getNominalPower() != null
+                ? device.getNominalPower()
+                : BigDecimal.valueOf(1.0);
+        return nominal.max(BigDecimal.valueOf(0.01)).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal simulateActualValue(BigDecimal expected, AnomalyType type) {
+        double factor = type == AnomalyType.SPIKE
+                ? ThreadLocalRandom.current().nextDouble(1.8, 3.2)
+                : ThreadLocalRandom.current().nextDouble(0.1, 0.35);
+        return expected.multiply(BigDecimal.valueOf(factor)).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private List<Double> fallbackForecast(Long userId) {
+        try {
+            List<Double> series = loadAggregatedSeries(userId);
+            if (series.isEmpty()) {
+                return zeroForecast();
+            }
+
+            if (series.size() >= FORECAST_SIZE) {
+                return series.subList(series.size() - FORECAST_SIZE, series.size())
+                        .stream()
+                        .map(this::safeForecastValue)
+                        .toList();
+            }
+
+            double average = series.stream()
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
+            return repeatedForecast(average);
+        } catch (RuntimeException e) {
+            return zeroForecast();
+        }
+    }
+
+    private List<Double> repeatedForecast(double value) {
+        List<Double> result = new ArrayList<>();
+        for (int i = 0; i < FORECAST_SIZE; i++) {
+            result.add(safeForecastValue(value));
+        }
+        return result;
+    }
+
+    private List<Double> zeroForecast() {
+        return repeatedForecast(0.0);
+    }
+
+    private double safeForecastValue(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return 0.0;
+        }
+        return Math.max(0.0, value);
     }
 
     private MultiLayerNetwork buildModel() {

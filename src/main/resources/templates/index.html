@@ -19,9 +19,13 @@
             Додаток збирає показники пристроїв, показує статистику споживання,
             фіксує аномалії та готує прогноз навантаження на наступні 24 години.
         </p>
-        <div class="landing-actions">
+        <div class="landing-actions" data-guest-nav>
             <a class="button" th:href="@{/register}">Почати роботу</a>
             <a class="button button-outline" th:href="@{/login}">Увійти</a>
+        </div>
+        <div class="landing-actions" data-user-nav hidden>
+            <a class="button" th:href="@{/dashboard}">Перейти до dashboard</a>
+            <a class="button button-outline" th:href="@{/anomalies}">Переглянути аномалії</a>
         </div>
     </section>
 </main>

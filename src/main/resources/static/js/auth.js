@@ -2,18 +2,23 @@ const TOKEN_KEY = "energy-monitor-token";
 const USERNAME_KEY = "energy-monitor-username";
 const TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24;
 
+localStorage.removeItem(TOKEN_KEY);
+localStorage.removeItem(USERNAME_KEY);
+
 const getAuthState = () => ({
-    token: localStorage.getItem(TOKEN_KEY),
-    username: localStorage.getItem(USERNAME_KEY)
+    token: sessionStorage.getItem(TOKEN_KEY),
+    username: sessionStorage.getItem(USERNAME_KEY)
 });
 
 const setAuthCookie = (token) => {
-    document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; Path=/; Max-Age=${TOKEN_MAX_AGE_SECONDS}; SameSite=Lax`;
+    document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
 };
 
 const clearAuthCookie = () => {
     document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
 };
+
+clearAuthCookie();
 
 const apiFetch = async (url, options = {}) => {
     const { token } = getAuthState();
@@ -25,8 +30,8 @@ const apiFetch = async (url, options = {}) => {
 
     const response = await fetch(url, { ...options, headers });
     if (response.status === 401) {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USERNAME_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(USERNAME_KEY);
         clearAuthCookie();
         window.location.href = "/login";
         throw new Error("Потрібно увійти в систему.");
@@ -118,11 +123,21 @@ const loadDashboardMetrics = async () => {
     }
 };
 
+const refreshDashboard = async () => {
+    await Promise.allSettled([
+        loadCoreStructure(),
+        loadAnomalies()
+    ]);
+    await loadDashboardMetrics().catch(error => console.error("Metrics refresh error:", error));
+    await initConsumptionChart().catch(error => console.error("Chart refresh error:", error));
+    await loadDeviceContribution().catch(error => console.error("Device contribution refresh error:", error));
+};
+
 const bindLogout = () => {
     document.querySelectorAll("[data-logout]").forEach((button) => {
         button.addEventListener("click", () => {
-            localStorage.removeItem(TOKEN_KEY);
-            localStorage.removeItem(USERNAME_KEY);
+            sessionStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(USERNAME_KEY);
             clearAuthCookie();
             updateAuthNavigation();
             window.location.href = "/login";
@@ -156,8 +171,8 @@ const bindAuthForms = () => {
                 }
 
                 const data = await response.json();
-                localStorage.setItem(TOKEN_KEY, data.token);
-                localStorage.setItem(USERNAME_KEY, data.username);
+                sessionStorage.setItem(TOKEN_KEY, data.token);
+                sessionStorage.setItem(USERNAME_KEY, data.username);
                 setAuthCookie(data.token);
 
                 updateAuthNavigation();
@@ -189,6 +204,15 @@ const formatEnum = (value) => {
     }
 
     return value.toLowerCase().replaceAll("_", " ");
+};
+
+const formatNumber = (value, digits = 2) => {
+    const number = Number(value);
+    const safeNumber = Number.isFinite(number) ? number : 0;
+    return safeNumber.toLocaleString("uk-UA", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+    });
 };
 
 const renderHouseholds = (households) => {
@@ -299,7 +323,7 @@ const bindCoreForms = () => {
 
             householdForm.reset();
             setMessage(householdMessage, "Групу створено.", true);
-            await loadCoreStructure();
+            await refreshDashboard();
         } catch (error) {
             setMessage(householdMessage, error.message);
         }
@@ -340,7 +364,8 @@ const bindCoreForms = () => {
 
             deviceForm.reset();
             setMessage(deviceMessage, "Пристрій додано.", true);
-            await loadCoreStructure();
+            await refreshDashboard();
+            window.setTimeout(refreshDashboard, 1500);
         } catch (error) {
             setMessage(deviceMessage, error.message);
         }
@@ -348,29 +373,8 @@ const bindCoreForms = () => {
 };
 
 const bindMLControls = () => {
-    const trainBtn = document.querySelector("[data-train-model]");
     const simulateBtn = document.querySelector("[data-simulate-anomaly]");
     const message = document.querySelector("[data-ml-message]");
-
-    trainBtn?.addEventListener("click", async () => {
-        if (!confirm("Навчання займе ~20 хвилин. Продовжити?")) return;
-        setMessage(message, "Навчання запущено. Це займе ~20 хвилин...");
-        trainBtn.disabled = true;
-
-        try {
-            const response = await apiFetch("/api/ml/train", { method: "POST" });
-            if (response.ok) {
-                setMessage(message, "Модель успішно навчена!", true);
-                await loadDashboardMetrics();
-            } else {
-                setMessage(message, "Помилка навчання.");
-            }
-        } catch (error) {
-            setMessage(message, error.message);
-        } finally {
-            trainBtn.disabled = false;
-        }
-    });
 
     simulateBtn?.addEventListener("click", async () => {
         const devices = document.querySelectorAll("[data-device-list] .entity-item");
@@ -394,12 +398,46 @@ const bindMLControls = () => {
             );
 
             if (response.ok) {
-                setMessage(message, "Аномалію симульовано. Детекція відбудеться через 10 хвилин.", true);
+                setMessage(message, "Аномалію додано в журнал.", true);
+                await loadAnomalies();
             }
         } catch (error) {
             setMessage(message, error.message);
         }
     });
+};
+
+const loadDeviceContribution = async () => {
+    const list = document.querySelector("[data-device-contribution-list]");
+    if (!list) {
+        return;
+    }
+
+    try {
+        const response = await apiFetch("/api/ml/device-contribution");
+        if (!response.ok) {
+            throw new Error("Не вдалося завантажити внесок пристроїв.");
+        }
+
+        const items = await response.json();
+        if (!items.length) {
+            list.innerHTML = `<p class="muted">Дані з’являться після додавання пристроїв.</p>`;
+            return;
+        }
+
+        list.innerHTML = items.map((item) => `
+            <article class="entity-item">
+                <div>
+                    <strong>${item.deviceName}</strong>
+                    <span>${formatEnum(item.deviceType)} · ${formatNumber(item.totalKwh, 2)} кВт·год</span>
+                </div>
+                <span class="status-pill active">${formatNumber(item.percentage, 1)}%</span>
+            </article>
+        `).join("");
+    } catch (error) {
+        console.error("Device contribution error:", error);
+        list.innerHTML = `<p class="muted">Внесок пристроїв тимчасово недоступний.</p>`;
+    }
 };
 
 const loadAnomalies = async () => {
@@ -408,8 +446,14 @@ const loadAnomalies = async () => {
         return;
     }
 
+    const limit = tbody.dataset.anomalyLimit;
+    const anomalyUrl = limit && limit !== "all"
+        ? `/api/ml/anomalies?limit=${encodeURIComponent(limit)}`
+        : "/api/ml/anomalies";
+    const columnCount = tbody.closest("table")?.querySelectorAll("thead th").length || 6;
+
     try {
-        const response = await apiFetch("/api/ml/anomalies");
+        const response = await apiFetch(anomalyUrl);
         if (!response.ok) {
             return;
         }
@@ -417,11 +461,11 @@ const loadAnomalies = async () => {
         const anomalies = await response.json();
 
         if (!anomalies.length) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty-table">Аномалій не виявлено.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${columnCount}" class="empty-table">Аномалій не виявлено.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = anomalies.slice(0, 10).map(a => `
+        tbody.innerHTML = anomalies.map(a => `
             <tr>
                 <td>${new Date(a.timestamp).toLocaleString("uk-UA")}</td>
                 <td>${a.deviceName}</td>
@@ -450,6 +494,7 @@ const startAutoRefresh = () => {
             await loadDashboardMetrics();
             await loadAnomalies();
             await initConsumptionChart();
+            await loadDeviceContribution();
         } catch (error) {
             console.error("Auto refresh error:", error);
         }
@@ -532,9 +577,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await initConsumptionChart();
 
     try {
-        await loadCoreStructure();
-        await loadDashboardMetrics();
-        await loadAnomalies();
+        await refreshDashboard();
         startAutoRefresh();
     } catch (error) {
         console.error(error);

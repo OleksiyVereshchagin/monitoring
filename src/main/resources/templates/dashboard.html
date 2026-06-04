@@ -135,9 +135,6 @@
             </div>
         </div>
         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <button class="button" type="button" data-train-model>
-                Навчити модель
-            </button>
             <button class="button button-outline" type="button" data-simulate-anomaly>
                 Симулювати аномалію
             </button>
@@ -157,7 +154,18 @@
 
     <section class="panel" style="margin-top: 24px;">
         <div class="panel-header">
+            <h2>Внесок пристроїв</h2>
+            <span class="muted">Останні 24 години</span>
+        </div>
+        <div class="entity-list" data-device-contribution-list>
+            <p class="muted">Дані з’являться після додавання пристроїв.</p>
+        </div>
+    </section>
+
+    <section class="panel" style="margin-top: 24px;">
+        <div class="panel-header">
             <h2>Останні аномалії</h2>
+            <a class="text-link" th:href="@{/anomalies}">Повна історія</a>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle anomaly-table">
@@ -171,7 +179,7 @@
                     <th>Тип</th>
                 </tr>
                 </thead>
-                <tbody data-anomaly-list>
+                <tbody data-anomaly-list data-anomaly-limit="5">
                 <tr>
                     <td colspan="6" class="empty-table">Аномалій не виявлено.</td>
                 </tr>

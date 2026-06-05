@@ -232,12 +232,41 @@ public class MLService {
     // ── Симуляція аномалійgenerateCurrentReading ────────────────────────────────────────────────────
 
 
-    public void simulateAnomaly(Long deviceId, Long userId) {
+    public Anomaly simulateAnomaly(Long userId) {
+        List<Device> activeDevices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .filter(device -> Boolean.TRUE.equals(device.getActive()))
+                .toList();
+
+        if (activeDevices.isEmpty()) {
+            throw new RuntimeException("Пристроїв не знайдено.");
+        }
+
+        List<Anomaly> recentAnomalies = anomalyRepository.findAllByDeviceInOrderByTimestampDesc(activeDevices);
+        Long latestDeviceId = recentAnomalies.isEmpty()
+                ? null
+                : recentAnomalies.get(0).getDevice().getId();
+
+        List<Device> candidates = activeDevices;
+        if (activeDevices.size() > 1 && latestDeviceId != null) {
+            candidates = activeDevices.stream()
+                    .filter(device -> !device.getId().equals(latestDeviceId))
+                    .toList();
+        }
+
+        Device device = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+        return createSimulatedAnomaly(device, chooseSimulatedAnomalyType(device, recentAnomalies));
+    }
+
+    public Anomaly simulateAnomaly(Long deviceId, Long userId) {
         Device device = deviceRepository.findByIdAndUserId(deviceId, userId)
                 .orElseThrow(() -> new RuntimeException("Пристрій не знайдено"));
 
+        return createSimulatedAnomaly(device, chooseSimulatedAnomalyType(device, List.of()));
+    }
+
+    private Anomaly createSimulatedAnomaly(Device device, AnomalyType type) {
         BigDecimal expected = estimateExpectedValue(device);
-        AnomalyType type = ThreadLocalRandom.current().nextBoolean() ? AnomalyType.SPIKE : AnomalyType.DROP;
         BigDecimal actual = simulateActualValue(expected, type);
         BigDecimal safeExpected = expected.compareTo(BigDecimal.ZERO) > 0 ? expected : BigDecimal.ONE;
         BigDecimal deviationPercent = actual.subtract(expected)
@@ -255,8 +284,17 @@ public class MLService {
                 .type(type)
                 .build();
 
-        anomalyRepository.save(anomaly);
+        Anomaly saved = anomalyRepository.save(anomaly);
         log.info("MLService: simulated {} anomaly for '{}'", type, device.getName());
+        return saved;
+    }
+
+    private AnomalyType chooseSimulatedAnomalyType(Device device, List<Anomaly> recentAnomalies) {
+        return recentAnomalies.stream()
+                .filter(anomaly -> anomaly.getDevice().getId().equals(device.getId()))
+                .findFirst()
+                .map(anomaly -> anomaly.getType() == AnomalyType.SPIKE ? AnomalyType.DROP : AnomalyType.SPIKE)
+                .orElseGet(() -> ThreadLocalRandom.current().nextBoolean() ? AnomalyType.SPIKE : AnomalyType.DROP);
     }
 
     // ── Допоміжні методи ────────────────────────────────────────────────────

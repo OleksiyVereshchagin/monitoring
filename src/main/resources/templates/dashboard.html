@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | Energy Monitor</title>
+    <title>Огляд | Energy Monitor</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <script defer th:src="@{/js/auth.js}"></script>
@@ -15,8 +15,8 @@
 <main class="page">
     <section class="page-heading">
         <p class="eyebrow">Огляд системи</p>
-        <h1>Dashboard</h1>
-        <p>Тут відображається поточне та прогнозоване енергоспоживання будинку.</p>
+        <h1>Огляд</h1>
+        <p>Ключові показники домашнього споживання, прогноз на добу та останні відхилення.</p>
     </section>
 
     <section class="stats-grid" aria-label="Основні показники" data-metrics>
@@ -74,11 +74,11 @@
             <div class="panel-header">
                 <div>
                     <p class="eyebrow">Пристрої</p>
-                    <h2>Керування пристроями</h2>
+                    <h2>Мої пристрої</h2>
                 </div>
             </div>
-            <p class="muted">Додавання, редагування, вимкнення та видалення пристроїв винесено на окрему сторінку, щоб dashboard залишався оглядовим екраном.</p>
-            <a class="button" th:href="@{/devices}">Перейти до пристроїв</a>
+            <p class="muted">Додайте пристрої та налаштуйте їхній стан, щоб бачити реалістичну картину споживання.</p>
+            <a class="button" th:href="@{/devices}">Керувати пристроями</a>
         </article>
     </section>
 
@@ -86,12 +86,12 @@
         <div class="panel-header">
             <div>
                 <p class="eyebrow">Нейромережа</p>
-                <h2>Управління моделлю</h2>
+                <h2>Перевірка відхилень</h2>
             </div>
         </div>
         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
             <button class="button button-outline" type="button" data-simulate-anomaly>
-                Симулювати аномалію
+                Створити тестову аномалію
             </button>
             <p class="form-message" data-ml-message style="width: 100%;"></p>
         </div>

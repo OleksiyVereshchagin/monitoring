@@ -177,7 +177,7 @@ const bindAuthForms = () => {
 
                 updateAuthNavigation();
                 message.classList.add("success");
-                message.textContent = "Успішно. Переходимо до dashboard...";
+                message.textContent = "Успішно. Переходимо до огляду...";
 
                 window.setTimeout(() => {
                     window.location.href = "/dashboard";
@@ -876,14 +876,14 @@ const bindSimulationProfile = () => {
             }
 
             fillSimulationForm(await response.json());
-            setMessage(message, "Профіль симуляції збережено.", true);
+            setMessage(message, "Сценарій збережено.", true);
         } catch (error) {
             setMessage(message, error.message);
         }
     });
 
     regenerateButton?.addEventListener("click", async () => {
-        setMessage(message, "Перегенеровуємо generated readings за останні 24 години...");
+        setMessage(message, "Оновлюємо дані за останні 24 години...");
         regenerateButton.disabled = true;
 
         try {
@@ -893,7 +893,7 @@ const bindSimulationProfile = () => {
             }
 
             const result = await response.json();
-            setMessage(message, `Готово. Створено ${result.created ?? 0} readings. Dashboard оновиться після відкриття.`, true);
+            setMessage(message, `Готово. Оновлено ${result.created ?? 0} записів споживання.`, true);
         } catch (error) {
             setMessage(message, error.message);
         } finally {
@@ -907,29 +907,16 @@ const bindMLControls = () => {
     const message = document.querySelector("[data-ml-message]");
 
     simulateBtn?.addEventListener("click", async () => {
-        const devices = document.querySelectorAll("[data-device-list] .entity-item");
-        if (!devices.length) {
-            setMessage(message, "Спочатку додайте пристрої.");
-            return;
-        }
-
         try {
-            const devicesResponse = await apiFetch("/api/devices");
-            const deviceList = await devicesResponse.json();
-            if (!deviceList.length) {
-                setMessage(message, "Пристроїв не знайдено.");
-                return;
-            }
-
-            const deviceId = deviceList[0].id;
-            const response = await apiFetch(
-                `/api/ml/simulate-anomaly?deviceId=${deviceId}`,
-                { method: "POST" }
-            );
+            const response = await apiFetch("/api/ml/simulate-anomaly", { method: "POST" });
 
             if (response.ok) {
-                setMessage(message, "Аномалію додано в журнал.", true);
+                const result = await response.json();
+                const deviceName = result.deviceName ? ` для "${result.deviceName}"` : "";
+                setMessage(message, `Аномалію додано в журнал${deviceName}.`, true);
                 await loadAnomalies();
+            } else {
+                setMessage(message, "Спочатку додайте активні пристрої.");
             }
         } catch (error) {
             setMessage(message, error.message);

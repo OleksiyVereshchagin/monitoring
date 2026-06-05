@@ -13,16 +13,16 @@
 
 <main class="page narrow-page">
     <section class="page-heading">
-        <p class="eyebrow">Профіль симуляції</p>
-        <h1>Налаштування побутового сценарію</h1>
-        <p>Ці параметри впливають на generated readings, графік споживання, прогноз і внесок пристроїв.</p>
+        <p class="eyebrow">Сценарій дому</p>
+        <h1>Налаштування поведінки споживання</h1>
+        <p>Опишіть склад домогосподарства та звичний розпорядок, щоб дані споживання виглядали ближче до реального життя.</p>
     </section>
 
     <section class="panel">
         <div class="panel-header">
             <div>
-                <p class="eyebrow">Домогосподарство</p>
-                <h2>Базові дані</h2>
+                    <p class="eyebrow">Оселя</p>
+                    <h2>Основні параметри</h2>
             </div>
         </div>
 
@@ -67,7 +67,7 @@
                     <option value="Чернівецька">Чернівецька область</option>
                     <option value="Чернігівська">Чернігівська область</option>
                 </select>
-                <small class="muted">Область використовується як простий кліматичний коефіцієнт для сезонних пристроїв.</small>
+                <small class="muted">Оберіть область, у якій розташована оселя.</small>
             </label>
 
             <div class="simulation-form-grid">
@@ -94,7 +94,7 @@
             <section class="simulation-section custom-schedule-section" data-custom-schedule-section hidden>
                 <div>
                     <p class="eyebrow">Власний графік</p>
-                    <p class="muted">Додайте до 5 періодів, коли люди вдома. Для кожного періоду можна окремо дозволити потужні прилади: духовку, пральну машину, посудомийку, пилосос або праску.</p>
+                    <p class="muted">Додайте періоди, коли вдома є активність. Для кожного періоду можна окремо дозволити потужні прилади.</p>
                 </div>
 
                 <div class="custom-schedule-grid">
@@ -210,7 +210,7 @@
             <section class="simulation-section">
                 <div>
                     <p class="eyebrow">Вихідні дні</p>
-                    <p class="muted">Оберіть дні, коли люди частіше вдома. Це може бути не тільки субота й неділя.</p>
+                    <p class="muted">Позначте дні тижня, які для вашої оселі зазвичай є вихідними.</p>
                 </div>
                 <div class="weekday-picker compact" data-weekend-days>
                     <label><input type="checkbox" name="weekendDay" value="MONDAY"><span>Пн</span></label>
@@ -226,7 +226,7 @@
             <section class="simulation-section">
                 <div>
                     <p class="eyebrow">Сон і регулярна відсутність</p>
-                    <p class="muted">Цей блок використовується для звичайних сценаріїв і як базове обмеження для сну. Під час сну система зменшує активність навіть у власному графіку.</p>
+                    <p class="muted">Вкажіть звичний час сну та період, коли вдома зазвичай нікого немає.</p>
                 </div>
 
                 <div class="time-range-grid">
@@ -251,7 +251,7 @@
 
             <div class="form-actions">
                 <button class="button" type="submit">Зберегти профіль</button>
-                <button class="button button-outline" type="button" data-simulation-regenerate>Застосувати до 24 годин</button>
+                <button class="button button-outline" type="button" data-simulation-regenerate>Оновити останні 24 години</button>
             </div>
 
             <p class="form-message" data-simulation-message></p>

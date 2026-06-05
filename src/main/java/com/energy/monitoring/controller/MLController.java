@@ -125,11 +125,18 @@ public class MLController {
 
     @PostMapping("/simulate-anomaly")
     public ResponseEntity<Map<String, String>> simulateAnomaly(
-            @RequestParam Long deviceId,
+            @RequestParam(required = false) Long deviceId,
             Authentication authentication) {
         Long userId = getUserId(authentication);
-        mlService.simulateAnomaly(deviceId, userId);
-        return ResponseEntity.ok(Map.of("status", "ok", "message", "Аномалію вставлено."));
+        Anomaly anomaly = deviceId != null
+                ? mlService.simulateAnomaly(deviceId, userId)
+                : mlService.simulateAnomaly(userId);
+        return ResponseEntity.ok(Map.of(
+                "status", "ok",
+                "message", "Аномалію вставлено.",
+                "deviceName", anomaly.getDevice().getName(),
+                "type", anomaly.getType().name()
+        ));
     }
 
     @GetMapping("/readings/hourly")

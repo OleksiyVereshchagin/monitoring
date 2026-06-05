@@ -68,7 +68,7 @@ public class TelemetryController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping({"/api/devices", "/devices"})
+    @PostMapping("/api/devices")
     public ResponseEntity<DeviceResponse> createDevice(
             @Valid @RequestBody DeviceRequest request,
             Authentication authentication
@@ -77,7 +77,7 @@ public class TelemetryController {
                 .body(telemetryService.createDevice(request, authentication));
     }
 
-    @GetMapping({"/api/devices", "/devices"})
+    @GetMapping("/api/devices")
     public ResponseEntity<List<DeviceResponse>> getDevices(
             @RequestParam(required = false) Long householdId,
             Authentication authentication
@@ -85,7 +85,7 @@ public class TelemetryController {
         return ResponseEntity.ok(telemetryService.getDevices(householdId, authentication));
     }
 
-    @PutMapping({"/api/devices/{id}", "/devices/{id}"})
+    @PutMapping("/api/devices/{id}")
     public ResponseEntity<DeviceResponse> updateDevice(
             @PathVariable Long id,
             @Valid @RequestBody DeviceRequest request,
@@ -94,7 +94,7 @@ public class TelemetryController {
         return ResponseEntity.ok(telemetryService.updateDevice(id, request, authentication));
     }
 
-    @DeleteMapping({"/api/devices/{id}", "/devices/{id}"})
+    @DeleteMapping("/api/devices/{id}")
     public ResponseEntity<Void> deleteDevice(
             @PathVariable Long id,
             Authentication authentication

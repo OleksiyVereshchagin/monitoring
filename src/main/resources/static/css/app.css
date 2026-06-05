@@ -279,6 +279,28 @@ a:hover {
     margin-bottom: 24px;
 }
 
+.device-page-grid {
+    align-items: stretch;
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+}
+
+.device-form-panel,
+.device-list-panel {
+    display: flex;
+    flex-direction: column;
+    height: 800px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.device-form-panel .compact-form {
+    flex: 1;
+    min-height: 0;
+    margin-bottom: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
 .metric-card {
     display: grid;
     gap: 10px;
@@ -347,12 +369,145 @@ a:hover {
     outline: 3px solid rgba(15, 118, 110, 0.14);
 }
 
+.simulation-form-grid,
+.time-range-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.simulation-section {
+    display: grid;
+    gap: 12px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+}
+
+.simulation-section p {
+    margin: 0;
+}
+
+.custom-schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.custom-schedule-block {
+    display: grid;
+    gap: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 14px;
+}
+
+.custom-schedule-block h3 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+    font-size: 16px;
+}
+
+.custom-schedule-block h3 span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.custom-period-remove {
+    border: 0;
+    background: transparent;
+    color: var(--danger);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0;
+}
+
+.custom-period-remove:hover {
+    text-decoration: underline;
+}
+
+.custom-schedule-block.optional {
+    background: #fbfcfd;
+}
+
+.custom-schedule-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.checkbox-row {
+    align-items: center;
+    display: flex !important;
+    flex-direction: row;
+    gap: 8px !important;
+    font-weight: 600;
+}
+
+.checkbox-row input {
+    width: auto;
+}
+
+.weekday-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.weekday-picker label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #ffffff;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 8px 12px;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.weekday-picker input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.weekday-picker label:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--soft);
+    color: var(--accent-dark);
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
 .entity-list {
     display: grid;
     gap: 10px;
     max-height: 252px; /* рівно 3 картки по ~74px + gap */
     overflow-y: auto;
     padding-right: 4px; /* щоб скролбар не перекривав контент */
+}
+
+.device-management-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    padding-right: 0;
 }
 
 .entity-item {
@@ -365,7 +520,57 @@ a:hover {
     padding: 14px;
 }
 
-.entity-item div {
+.entity-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.device-management-list .entity-item {
+    align-items: stretch;
+    display: grid;
+    gap: 12px;
+}
+
+.device-management-list .entity-actions {
+    align-items: center;
+    justify-content: flex-start;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+}
+
+.text-button {
+    min-height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--accent-dark);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 10px;
+}
+
+.text-button:hover {
+    border-color: var(--accent);
+    background: var(--soft);
+    text-decoration: none;
+}
+
+.text-button.danger {
+    border-color: #f3c1bc;
+    color: var(--danger);
+}
+
+.text-button.danger:hover {
+    background: #fff4f2;
+    border-color: var(--danger);
+}
+
+.entity-item > div:not(.entity-actions) {
     display: grid;
     gap: 3px;
 }
@@ -439,6 +644,16 @@ a:hover {
     .management-grid {
         grid-template-columns: 1fr;
     }
+
+    .simulation-form-grid,
+    .time-range-grid,
+    .custom-schedule-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .weekday-picker {
+        gap: 6px;
+    }
 }
 
 @media (max-width: 640px) {
@@ -469,5 +684,10 @@ a:hover {
     .profile-card {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .weekday-picker label {
+        min-width: 44px;
+        padding-inline: 10px;
     }
 }

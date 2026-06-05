@@ -2,9 +2,11 @@ package com.energy.monitoring.service;
 
 import com.energy.monitoring.entity.Device;
 import com.energy.monitoring.entity.Reading;
+import com.energy.monitoring.entity.SimulationProfile;
 import com.energy.monitoring.generator.PatternGenerator;
 import com.energy.monitoring.repository.DeviceRepository;
 import com.energy.monitoring.repository.ReadingRepository;
+import com.energy.monitoring.repository.SimulationProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -33,6 +35,7 @@ public class DataGeneratorService {
     private final MLService mlService;
     private final DeviceRepository deviceRepository;
     private final ReadingRepository readingRepository;
+    private final SimulationProfileRepository simulationProfileRepository;
     private final PatternGenerator patternGenerator;
 
     @EventListener(ApplicationReadyEvent.class)
@@ -89,10 +92,25 @@ public class DataGeneratorService {
         return generateMissingReadings(devices, from, now);
     }
 
+    @Transactional
+    public int regenerateRecentDataForUser(Long userId) {
+        LocalDateTime now = alignToTenMinuteStep(LocalDateTime.now());
+        LocalDateTime from = now.minusHours(SCHEDULE_GAP_HOURS);
+        readingRepository.deleteGeneratedReadingsForUserBetween(userId, GENERATOR_SOURCE, from, now);
+
+        List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        return generateMissingReadings(devices, from, now);
+    }
+
     private int generateMissingReadings(List<Device> devices, LocalDateTime from, LocalDateTime to) {
         int created = 0;
 
         for (Device device : devices) {
+            if (!Boolean.TRUE.equals(device.getActive())) {
+                continue;
+            }
+
+            SimulationProfile profile = simulationProfileRepository.findByUserId(device.getUser().getId()).orElse(null);
             Set<LocalDateTime> existing = new HashSet<>(
                     readingRepository.findTimestampsByDeviceAndTimestampBetween(device, from, to)
             );
@@ -104,7 +122,7 @@ public class DataGeneratorService {
                     batch.add(Reading.builder()
                             .device(device)
                             .timestamp(cursor)
-                            .powerConsumption(patternGenerator.generate(device, cursor))
+                            .powerConsumption(patternGenerator.generate(device, cursor, profile))
                             .source(GENERATOR_SOURCE)
                             .build());
                 }

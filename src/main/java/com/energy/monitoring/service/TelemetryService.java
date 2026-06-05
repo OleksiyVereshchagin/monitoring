@@ -281,10 +281,11 @@ public class TelemetryService {
         }
 
         return switch (type) {
-            case FRIDGE, REFRIGERATOR, FREEZER, AC -> BehaviorProfile.CYCLIC;
-            case LIGHT, LIGHTING, TV, COMPUTER, LAPTOP, ROUTER, CHARGER, SMART_PLUG -> BehaviorProfile.INTERMITTENT;
+            case FRIDGE, REFRIGERATOR, FREEZER, AC, FAN, AIR_PURIFIER, GAS_BOILER -> BehaviorProfile.CYCLIC;
+            case LIGHT, LIGHTING, TV, COMPUTER, DESKTOP_PC, LAPTOP, MONITOR,
+                 GAME_CONSOLE, SPEAKERS, ROUTER, CHARGER, SMART_PLUG -> BehaviorProfile.INTERMITTENT;
             case OVEN, STOVE, MICROWAVE, KETTLE, COFFEE_MACHINE, WASHING_MACHINE,
-                 DRYER, DISHWASHER, EV_CHARGER -> BehaviorProfile.PEAK_BASED;
+                 TOASTER, IRON, HAIR_DRYER, DRYER, DISHWASHER, EV_CHARGER -> BehaviorProfile.PEAK_BASED;
             case HEATER, BOILER, WATER_PUMP, SOLAR_INVERTER, BATTERY_STORAGE, VACUUM, OTHER -> BehaviorProfile.CONSTANT;
         };
     }

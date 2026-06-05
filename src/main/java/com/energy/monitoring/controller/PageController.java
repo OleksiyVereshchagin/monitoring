@@ -26,6 +26,11 @@ public class PageController {
         return "dashboard";
     }
 
+    @GetMapping("/devices")
+    public String devices() {
+        return "devices";
+    }
+
     @GetMapping("/profile")
     public String profile() {
         return "profile";
@@ -34,5 +39,10 @@ public class PageController {
     @GetMapping("/anomalies")
     public String anomalies() {
         return "anomalies";
+    }
+
+    @GetMapping("/simulation")
+    public String simulation() {
+        return "simulation";
     }
 }

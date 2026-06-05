@@ -4,6 +4,7 @@ import com.energy.monitoring.entity.Device;
 import com.energy.monitoring.entity.Reading;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -130,4 +131,19 @@ public interface ReadingRepository extends JpaRepository<Reading, Long>, JpaSpec
     List<Object[]> findDeviceContribution(@Param("userId") Long userId,
                                           @Param("from") LocalDateTime from,
                                           @Param("excludedSource") String excludedSource);
+
+    @Modifying
+    @Query(value = """
+            DELETE FROM readings r
+            USING devices d
+            WHERE r.device_id = d.id
+            AND d.user_id = :userId
+            AND r.source = :source
+            AND r.timestamp BETWEEN :from AND :to
+            """,
+            nativeQuery = true)
+    int deleteGeneratedReadingsForUserBetween(@Param("userId") Long userId,
+                                              @Param("source") String source,
+                                              @Param("from") LocalDateTime from,
+                                              @Param("to") LocalDateTime to);
 }

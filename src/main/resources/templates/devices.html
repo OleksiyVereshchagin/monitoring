@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пристрої | Energy Monitor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body data-auth-page="protected">
+<header th:replace="~{fragments/topbar :: topbar}"></header>
+
+<main class="page" data-core-manager>
+    <section class="page-heading">
+        <p class="eyebrow">Керування</p>
+        <h1>Пристрої</h1>
+        <p>Тут можна додавати, редагувати, вимикати або видаляти пристрої, які беруть участь у симуляції та розрахунках.</p>
+    </section>
+
+    <section class="management-grid device-page-grid">
+        <article class="panel device-form-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="eyebrow">Форма</p>
+                    <h2 data-device-form-title>Додати пристрій</h2>
+                </div>
+            </div>
+
+            <form class="compact-form" data-device-form>
+                <label>
+                    Група
+                    <select name="householdId" data-household-select required>
+                        <option value="">Спочатку створіть групу</option>
+                    </select>
+                </label>
+
+                <label>
+                    Назва
+                    <input type="text" name="name" placeholder="Холодильник" required>
+                </label>
+
+                <label>
+                    Тип
+                    <select name="type" required>
+                        <option value="FRIDGE">Холодильник</option>
+                        <option value="TV">Телевізор</option>
+                        <option value="AC">Кондиціонер</option>
+                        <option value="LIGHT">Освітлення</option>
+                        <option value="HEATER">Обігрівач</option>
+                        <option value="BOILER">Електричний бойлер</option>
+                        <option value="GAS_BOILER">Газовий котел</option>
+                        <option value="WASHING_MACHINE">Пральна машина</option>
+                        <option value="DISHWASHER">Посудомийка</option>
+                        <option value="OVEN">Духовка</option>
+                        <option value="MICROWAVE">Мікрохвильовка</option>
+                        <option value="KETTLE">Чайник</option>
+                        <option value="TOASTER">Тостер</option>
+                        <option value="COFFEE_MACHINE">Кавомашина</option>
+                        <option value="IRON">Праска</option>
+                        <option value="HAIR_DRYER">Фен</option>
+                        <option value="COMPUTER">Комп'ютер</option>
+                        <option value="DESKTOP_PC">Стаціонарний ПК</option>
+                        <option value="LAPTOP">Ноутбук</option>
+                        <option value="MONITOR">Монітор</option>
+                        <option value="GAME_CONSOLE">Ігрова приставка</option>
+                        <option value="ROUTER">Роутер</option>
+                        <option value="FAN">Вентилятор</option>
+                        <option value="AIR_PURIFIER">Очищувач повітря</option>
+                        <option value="VACUUM">Пилосос</option>
+                        <option value="EV_CHARGER">Зарядка авто</option>
+                        <option value="OTHER">Інше</option>
+                    </select>
+                </label>
+
+                <label>
+                    Поведінка
+                    <select name="behaviorProfile">
+                        <option value="">Автоматично</option>
+                        <option value="CONSTANT">Постійна</option>
+                        <option value="CYCLIC">Циклічна</option>
+                        <option value="INTERMITTENT">Переривчаста</option>
+                        <option value="PEAK_BASED">Пікова</option>
+                    </select>
+                </label>
+
+                <label>
+                    Номінальна потужність, кВт
+                    <input type="number" name="nominalPower" min="0" step="0.01" placeholder="1.50">
+                </label>
+
+                <label>
+                    Статус
+                    <select name="active">
+                        <option value="true">Активний</option>
+                        <option value="false">Неактивний</option>
+                    </select>
+                </label>
+
+                <div class="form-actions">
+                    <button class="button" type="submit" data-device-submit>Додати пристрій</button>
+                    <button class="button button-outline" type="button" data-device-cancel hidden>Скасувати</button>
+                </div>
+
+                <p class="form-message" data-device-message></p>
+            </form>
+        </article>
+
+        <article class="panel device-list-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="eyebrow">Список</p>
+                    <h2>Мої пристрої</h2>
+                </div>
+            </div>
+
+            <div class="entity-list device-management-list" data-device-list data-manage-devices>
+                <p class="muted">Пристроїв ще немає.</p>
+            </div>
+        </article>
+    </section>
+</main>
+</body>
+</html>

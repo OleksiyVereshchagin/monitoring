@@ -71,6 +71,10 @@ public class Device {
     @Builder.Default
     private List<Reading> readings = new ArrayList<>();
 
+    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Anomaly> anomalies = new ArrayList<>();
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();

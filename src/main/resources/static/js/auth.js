@@ -372,6 +372,30 @@ const updateDashboardScopeLabel = () => {
         : "Показано сумарні дані всіх груп.";
 };
 
+const getChartDays = () => (
+    document.querySelector("[data-chart-days].active")?.dataset.chartDays || "1"
+);
+
+const getChartPeriodLabel = (days) => {
+    if (String(days) === "5") {
+        return "Останні 5 днів";
+    }
+    if (String(days) === "7") {
+        return "Останні 7 днів";
+    }
+    return "Останні 24 години";
+};
+
+const formatChartLabel = (value, days) => {
+    const date = new Date(value);
+    const time = `${String(date.getHours()).padStart(2, "0")}:00`;
+    if (String(days) === "1") {
+        return time;
+    }
+
+    return `${date.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit" })} ${time}`;
+};
+
 const loadSimulationHouseholds = async () => {
     const select = document.querySelector("[data-simulation-household]");
     if (!select) {
@@ -1266,6 +1290,27 @@ const bindMLControls = () => {
     });
 };
 
+const bindChartControls = () => {
+    document.querySelectorAll("[data-chart-days]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            if (button.classList.contains("active")) {
+                return;
+            }
+
+            document.querySelectorAll("[data-chart-days]").forEach((item) => {
+                item.classList.toggle("active", item === button);
+            });
+
+            const status = document.querySelector("[data-chart-status]");
+            if (status) {
+                status.textContent = "Завантаження...";
+            }
+
+            await initConsumptionChart().catch(error => console.error("Chart range error:", error));
+        });
+    });
+};
+
 const loadDeviceContribution = async () => {
     const list = document.querySelector("[data-device-contribution-list]");
     if (!list) {
@@ -1402,20 +1447,18 @@ const initConsumptionChart = async () => {
 
     let labels = [];
     let data = [];
+    const days = getChartDays();
 
     try {
-        const response = await apiFetch(withDashboardHouseholdParam("/api/ml/readings/hourly"));
+        const response = await apiFetch(withDashboardHouseholdParam(`/api/ml/readings/hourly?days=${encodeURIComponent(days)}`));
         if (response.ok) {
             const json = await response.json();
             if (json.labels?.length) {
-                labels = json.labels.map(l => {
-                    const d = new Date(l);
-                    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-                });
+                labels = json.labels.map(l => formatChartLabel(l, json.days || days));
                 data = json.values;
             }
             const status = document.querySelector("[data-chart-status]");
-            if (status) status.textContent = "Останні 24 години";
+            if (status) status.textContent = getChartPeriodLabel(json.days || days);
         }
     } catch (error) {
         console.error("Chart error:", error);
@@ -1444,6 +1487,13 @@ const initConsumptionChart = async () => {
                 legend: { display: false }
             },
             scales: {
+                x: {
+                    ticks: {
+                        autoSkip: true,
+                        maxRotation: 0,
+                        maxTicksLimit: String(days) === "1" ? 12 : 10
+                    }
+                },
                 y: { beginAtZero: true }
             }
         }
@@ -1459,6 +1509,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     bindCoreForms();
     bindSimulationProfile();
     bindMLControls();
+    bindChartControls();
     await initConsumptionChart();
 
     try {

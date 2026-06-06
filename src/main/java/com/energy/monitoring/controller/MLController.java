@@ -154,11 +154,17 @@ public class MLController {
     @GetMapping("/readings/hourly")
     public ResponseEntity<Map<String, Object>> hourlyReadings(
             @RequestParam(required = false) Long householdId,
+            @RequestParam(defaultValue = "1") int days,
             Authentication authentication) {
         Long userId = getUserId(authentication);
-        dataGeneratorService.ensureRecentDataForUser(userId);
+        int chartDays = normalizeChartDays(days);
+        if (householdId != null) {
+            dataGeneratorService.ensureDataForUserAndHousehold(userId, householdId, chartDays);
+        } else {
+            dataGeneratorService.ensureDataForUser(userId, chartDays);
+        }
 
-        LocalDateTime from = LocalDateTime.now().minusHours(24);
+        LocalDateTime from = LocalDateTime.now().minusDays(chartDays);
 
         List<Object[]> raw = householdId != null
                 ? readingRepository.findHourlyAggregatedByHousehold(userId, householdId, from, SIMULATED_ANOMALY_SOURCE)
@@ -171,7 +177,11 @@ public class MLController {
             values.add(row[1] != null ? ((Number) row[1]).doubleValue() : null);
         }
 
-        return ResponseEntity.ok(Map.of("labels", labels, "values", values));
+        return ResponseEntity.ok(Map.of(
+                "labels", labels,
+                "values", values,
+                "days", chartDays
+        ));
     }
 
 
@@ -224,5 +234,15 @@ public class MLController {
 
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    private int normalizeChartDays(int days) {
+        if (days <= 1) {
+            return 1;
+        }
+        if (days <= 5) {
+            return 5;
+        }
+        return 7;
     }
 }

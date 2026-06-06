@@ -82,13 +82,30 @@ public class DataGeneratorService {
 
     @Transactional
     public int ensureRecentDataForUser(Long userId) {
+        return ensureDataForUser(userId, 1);
+    }
+
+    @Transactional
+    public int ensureDataForUser(Long userId, int days) {
         List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         if (devices.isEmpty()) {
             return 0;
         }
 
         LocalDateTime now = alignToTenMinuteStep(LocalDateTime.now());
-        LocalDateTime from = now.minusHours(SCHEDULE_GAP_HOURS);
+        LocalDateTime from = now.minusDays(Math.max(1, Math.min(days, STARTUP_HISTORY_DAYS)));
+        return generateMissingReadings(devices, from, now);
+    }
+
+    @Transactional
+    public int ensureDataForUserAndHousehold(Long userId, Long householdId, int days) {
+        List<Device> devices = deviceRepository.findAllByUserIdAndHouseholdIdOrderByCreatedAtDesc(userId, householdId);
+        if (devices.isEmpty()) {
+            return 0;
+        }
+
+        LocalDateTime now = alignToTenMinuteStep(LocalDateTime.now());
+        LocalDateTime from = now.minusDays(Math.max(1, Math.min(days, STARTUP_HISTORY_DAYS)));
         return generateMissingReadings(devices, from, now);
     }
 

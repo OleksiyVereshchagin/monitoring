@@ -51,7 +51,14 @@
     <section class="panel">
         <div class="panel-header">
             <h2>Графік споживання</h2>
-            <span class="muted" data-chart-status>Завантаження...</span>
+            <div class="chart-toolbar">
+                <div class="chart-range-control" aria-label="Період графіка">
+                    <button type="button" data-chart-days="1" class="active">24 години</button>
+                    <button type="button" data-chart-days="5">5 днів</button>
+                    <button type="button" data-chart-days="7">7 днів</button>
+                </div>
+                <span class="muted" data-chart-status>Завантаження...</span>
+            </div>
         </div>
         <div class="chart-placeholder">
             <canvas id="consumptionChart" aria-label="Графік споживання"></canvas>

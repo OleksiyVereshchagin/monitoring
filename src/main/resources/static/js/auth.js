@@ -102,7 +102,7 @@ const loadDashboardMetrics = async () => {
     }
 
     try {
-        const readingsResponse = await apiFetch("/api/ml/current-power");
+        const readingsResponse = await apiFetch(withDashboardHouseholdParam("/api/ml/current-power"));
         if (readingsResponse.ok) {
             const data = await readingsResponse.json();
             const current = document.querySelector("[data-current-power]");
@@ -115,7 +115,7 @@ const loadDashboardMetrics = async () => {
     }
 
     try {
-        const forecastResponse = await apiFetch("/api/ml/forecast");
+        const forecastResponse = await apiFetch(withDashboardHouseholdParam("/api/ml/forecast"));
         if (forecastResponse.ok) {
             const forecast = await forecastResponse.json();
             const total = (forecast.reduce((a, b) => a + b, 0) * (10 / 60)).toFixed(2);
@@ -341,9 +341,36 @@ const getDeviceHouseholdFilter = () => (
     document.querySelector("[data-device-household-filter]")?.value || ""
 );
 
+const getDashboardHouseholdFilter = () => (
+    document.querySelector("[data-dashboard-household-filter]")?.value || ""
+);
+
 const getAnomalyHouseholdFilter = () => (
     document.querySelector("[data-anomaly-household-filter]")?.value || ""
 );
+
+const withDashboardHouseholdParam = (url) => {
+    const householdId = getDashboardHouseholdFilter();
+    if (!householdId) {
+        return url;
+    }
+
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}householdId=${encodeURIComponent(householdId)}`;
+};
+
+const updateDashboardScopeLabel = () => {
+    const filter = document.querySelector("[data-dashboard-household-filter]");
+    const label = document.querySelector("[data-dashboard-scope-label]");
+    if (!filter || !label) {
+        return;
+    }
+
+    const selectedText = filter.selectedOptions[0]?.textContent || "";
+    label.textContent = filter.value
+        ? `Показано дані для: ${selectedText}.`
+        : "Показано сумарні дані всіх груп.";
+};
 
 const loadSimulationHouseholds = async () => {
     const select = document.querySelector("[data-simulation-household]");
@@ -511,7 +538,10 @@ const loadCoreStructure = async () => {
     renderHouseholds(households);
     renderHouseholdFilter("[data-device-household-filter]", households, "Усі групи");
 
-    const householdId = getDeviceHouseholdFilter();
+    renderHouseholdFilter("[data-dashboard-household-filter]", households, "Усі групи");
+    updateDashboardScopeLabel();
+
+    const householdId = getDeviceHouseholdFilter() || getDashboardHouseholdFilter();
     const devicesUrl = householdId
         ? `/api/devices?householdId=${encodeURIComponent(householdId)}`
         : "/api/devices";
@@ -764,6 +794,11 @@ const bindCoreForms = () => {
         } catch (error) {
             setMessage(deviceMessage, error.message);
         }
+    });
+
+    document.querySelector("[data-dashboard-household-filter]")?.addEventListener("change", async () => {
+        updateDashboardScopeLabel();
+        await refreshDashboard();
     });
 
     deviceForm?.addEventListener("submit", async (event) => {
@@ -1214,13 +1249,14 @@ const bindMLControls = () => {
 
     simulateBtn?.addEventListener("click", async () => {
         try {
-            const response = await apiFetch("/api/ml/simulate-anomaly", { method: "POST" });
+            const response = await apiFetch(withDashboardHouseholdParam("/api/ml/simulate-anomaly"), { method: "POST" });
 
             if (response.ok) {
                 const result = await response.json();
                 const deviceName = result.deviceName ? ` для "${result.deviceName}"` : "";
                 setMessage(message, `Аномалію додано в журнал${deviceName}.`, true);
                 await loadAnomalies();
+                await loadDeviceContribution();
             } else {
                 setMessage(message, "Спочатку додайте активні пристрої.");
             }
@@ -1237,7 +1273,7 @@ const loadDeviceContribution = async () => {
     }
 
     try {
-        const response = await apiFetch("/api/ml/device-contribution");
+        const response = await apiFetch(withDashboardHouseholdParam("/api/ml/device-contribution"));
         if (!response.ok) {
             throw new Error("Не вдалося завантажити внесок пристроїв.");
         }
@@ -1292,7 +1328,7 @@ const loadAnomalies = async () => {
     if (limit && limit !== "all") {
         params.set("limit", limit);
     }
-    const householdId = getAnomalyHouseholdFilter();
+    const householdId = getAnomalyHouseholdFilter() || getDashboardHouseholdFilter();
     if (householdId) {
         params.set("householdId", householdId);
     }
@@ -1368,7 +1404,7 @@ const initConsumptionChart = async () => {
     let data = [];
 
     try {
-        const response = await apiFetch("/api/ml/readings/hourly");
+        const response = await apiFetch(withDashboardHouseholdParam("/api/ml/readings/hourly"));
         if (response.ok) {
             const json = await response.json();
             if (json.labels?.length) {

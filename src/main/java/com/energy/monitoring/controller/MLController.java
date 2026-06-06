@@ -40,10 +40,12 @@ public class MLController {
     }
 
     @GetMapping("/forecast")
-    public ResponseEntity<List<Double>> forecast(Authentication authentication) {
+    public ResponseEntity<List<Double>> forecast(
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         dataGeneratorService.ensureRecentDataForUser(userId);
-        List<Double> result = mlService.forecast(userId);
+        List<Double> result = mlService.forecast(userId, householdId);
         return ResponseEntity.ok(result);
     }
 
@@ -133,11 +135,14 @@ public class MLController {
     @PostMapping("/simulate-anomaly")
     public ResponseEntity<Map<String, String>> simulateAnomaly(
             @RequestParam(required = false) Long deviceId,
+            @RequestParam(required = false) Long householdId,
             Authentication authentication) {
         Long userId = getUserId(authentication);
         Anomaly anomaly = deviceId != null
                 ? mlService.simulateAnomaly(deviceId, userId)
-                : mlService.simulateAnomaly(userId);
+                : householdId != null
+                        ? mlService.simulateAnomalyForHousehold(userId, householdId)
+                        : mlService.simulateAnomaly(userId);
         return ResponseEntity.ok(Map.of(
                 "status", "ok",
                 "message", "Аномалію вставлено.",
@@ -147,14 +152,17 @@ public class MLController {
     }
 
     @GetMapping("/readings/hourly")
-    public ResponseEntity<Map<String, Object>> hourlyReadings(Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> hourlyReadings(
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         dataGeneratorService.ensureRecentDataForUser(userId);
-        List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
 
         LocalDateTime from = LocalDateTime.now().minusHours(24);
 
-        List<Object[]> raw = readingRepository.findHourlyAggregated(userId, from, SIMULATED_ANOMALY_SOURCE);
+        List<Object[]> raw = householdId != null
+                ? readingRepository.findHourlyAggregatedByHousehold(userId, householdId, from, SIMULATED_ANOMALY_SOURCE)
+                : readingRepository.findHourlyAggregated(userId, from, SIMULATED_ANOMALY_SOURCE);
         List<String> labels = new ArrayList<>();
         List<Double> values = new ArrayList<>();
 
@@ -168,22 +176,30 @@ public class MLController {
 
 
     @GetMapping("/current-power")
-    public ResponseEntity<Map<String, Object>> currentPower(Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> currentPower(
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         dataGeneratorService.ensureRecentDataForUser(userId);
-        Double total = readingRepository.findLatestTotalConsumption(userId, SIMULATED_ANOMALY_SOURCE);
+        Double total = householdId != null
+                ? readingRepository.findLatestTotalConsumptionByHousehold(userId, householdId, SIMULATED_ANOMALY_SOURCE)
+                : readingRepository.findLatestTotalConsumption(userId, SIMULATED_ANOMALY_SOURCE);
         return ResponseEntity.ok(Map.of(
                 "value", total != null ? String.format("%.2f", total) : "0.00"
         ));
     }
 
     @GetMapping("/device-contribution")
-    public ResponseEntity<List<DeviceContributionResponse>> deviceContribution(Authentication authentication) {
+    public ResponseEntity<List<DeviceContributionResponse>> deviceContribution(
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         dataGeneratorService.ensureRecentDataForUser(userId);
 
         LocalDateTime from = LocalDateTime.now().minusHours(24);
-        List<Object[]> raw = readingRepository.findDeviceContribution(userId, from, SIMULATED_ANOMALY_SOURCE);
+        List<Object[]> raw = householdId != null
+                ? readingRepository.findDeviceContributionByHousehold(userId, householdId, from, SIMULATED_ANOMALY_SOURCE)
+                : readingRepository.findDeviceContribution(userId, from, SIMULATED_ANOMALY_SOURCE);
         double totalKwh = raw.stream()
                 .mapToDouble(row -> ((Number) row[3]).doubleValue())
                 .sum();

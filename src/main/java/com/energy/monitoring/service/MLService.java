@@ -115,10 +115,14 @@ public class MLService {
     // ── Прогноз ─────────────────────────────────────────────────────────────
 
     public List<Double> forecast(Long userId) {
+        return forecast(userId, null);
+    }
+
+    public List<Double> forecast(Long userId, Long householdId) {
         try {
             loadModelIfNeeded(userId);
 
-            List<Double> series = loadAggregatedSeries(userId);
+            List<Double> series = loadAggregatedSeries(userId, householdId);
             if (series.size() < WINDOW_SIZE) {
                 throw new IllegalStateException("Недостатньо даних для прогнозу.");
             }
@@ -141,9 +145,9 @@ public class MLService {
 
             return result;
         } catch (RuntimeException e) {
-            log.warn("MLService: LSTM forecast unavailable for userId={}, using stable fallback: {}",
-                    userId, e.getMessage());
-            return fallbackForecast(userId);
+            log.warn("MLService: LSTM forecast unavailable for userId={}, householdId={}, using stable fallback: {}",
+                    userId, householdId, e.getMessage());
+            return fallbackForecast(userId, householdId);
         }
     }
 
@@ -233,7 +237,15 @@ public class MLService {
 
 
     public Anomaly simulateAnomaly(Long userId) {
-        List<Device> activeDevices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+        return simulateAnomalyForDevices(deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId));
+    }
+
+    public Anomaly simulateAnomalyForHousehold(Long userId, Long householdId) {
+        return simulateAnomalyForDevices(deviceRepository.findAllByUserIdAndHouseholdIdOrderByCreatedAtDesc(userId, householdId));
+    }
+
+    private Anomaly simulateAnomalyForDevices(List<Device> devices) {
+        List<Device> activeDevices = devices
                 .stream()
                 .filter(device -> Boolean.TRUE.equals(device.getActive()))
                 .toList();
@@ -300,13 +312,20 @@ public class MLService {
     // ── Допоміжні методи ────────────────────────────────────────────────────
 
     private List<Double> loadAggregatedSeries(Long userId) {
-        List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        return loadAggregatedSeries(userId, null);
+    }
+
+    private List<Double> loadAggregatedSeries(Long userId, Long householdId) {
+        List<Device> devices = householdId != null
+                ? deviceRepository.findAllByUserIdAndHouseholdIdOrderByCreatedAtDesc(userId, householdId)
+                : deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         if (devices.isEmpty()) {
             throw new IllegalStateException("Пристроїв не знайдено.");
         }
 
-        List<Double> series = readingRepository
-                .findAggregatedByUserIdOrderByTimestamp(userId, "SIMULATED_ANOMALY")
+        List<Double> series = (householdId != null
+                ? readingRepository.findAggregatedByUserIdAndHouseholdIdOrderByTimestamp(userId, householdId, "SIMULATED_ANOMALY")
+                : readingRepository.findAggregatedByUserIdOrderByTimestamp(userId, "SIMULATED_ANOMALY"))
                 .stream()
                 .map(Double::valueOf)
                 .toList();
@@ -350,8 +369,12 @@ public class MLService {
     }
 
     private List<Double> fallbackForecast(Long userId) {
+        return fallbackForecast(userId, null);
+    }
+
+    private List<Double> fallbackForecast(Long userId, Long householdId) {
         try {
-            List<Double> series = loadAggregatedSeries(userId);
+            List<Double> series = loadAggregatedSeries(userId, householdId);
             if (series.isEmpty()) {
                 return zeroForecast();
             }

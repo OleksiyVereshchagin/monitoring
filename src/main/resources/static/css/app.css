@@ -279,6 +279,42 @@ a:hover {
     margin-bottom: 24px;
 }
 
+.dashboard-scope-panel {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 14px 16px;
+}
+
+.dashboard-scope-control {
+    display: grid;
+    gap: 6px;
+    min-width: min(100%, 320px);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.dashboard-scope-control select {
+    min-height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text);
+    font: inherit;
+    padding: 8px 10px;
+}
+
+.dashboard-scope-panel p {
+    margin: 0;
+    text-align: right;
+}
+
 .dashboard-ml-panel {
     margin-top: 24px;
 }
@@ -743,6 +779,15 @@ a:hover {
 
     .management-grid {
         grid-template-columns: 1fr;
+    }
+
+    .dashboard-scope-panel {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .dashboard-scope-panel p {
+        text-align: left;
     }
 
     .household-compact-layout,

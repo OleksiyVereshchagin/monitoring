@@ -18,6 +18,43 @@
         <p>Додайте побутові пристрої, задайте їхній тип і стан, щоб система могла показувати споживання по всій оселі.</p>
     </section>
 
+    <section class="panel household-compact-panel">
+        <div class="panel-header">
+            <div>
+                <p class="eyebrow">Об’єкти</p>
+                <h2>Групи пристроїв</h2>
+            </div>
+        </div>
+
+        <div class="household-compact-layout">
+            <form class="compact-form household-inline-form" data-household-form>
+                <label>
+                    Назва
+                    <input type="text" name="name" placeholder="Квартира" required>
+                </label>
+                <label>
+                    Тип
+                    <select name="type" required>
+                        <option value="APARTMENT">Квартира</option>
+                        <option value="HOUSE">Будинок</option>
+                        <option value="OFFICE">Офіс</option>
+                        <option value="COTTAGE">Дача</option>
+                        <option value="OTHER">Інше</option>
+                    </select>
+                </label>
+                <div class="form-actions">
+                    <button class="button" type="submit" data-household-submit>Створити групу</button>
+                    <button class="button button-outline" type="button" data-household-cancel hidden>Скасувати</button>
+                </div>
+                <p class="form-message" data-household-message></p>
+            </form>
+
+            <div class="entity-list household-inline-list" data-household-list>
+                <p class="muted">Груп ще немає.</p>
+            </div>
+        </div>
+    </section>
+
     <section class="management-grid device-page-grid">
         <article class="panel device-form-panel">
             <div class="panel-header">
@@ -113,6 +150,13 @@
                     <h2>Мої пристрої</h2>
                 </div>
             </div>
+
+            <label class="list-filter">
+                Група
+                <select data-device-household-filter>
+                    <option value="">Усі групи</option>
+                </select>
+            </label>
 
             <div class="entity-list device-management-list" data-device-list data-manage-devices>
                 <p class="muted">Пристроїв ще немає.</p>

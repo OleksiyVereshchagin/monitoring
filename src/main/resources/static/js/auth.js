@@ -320,6 +320,31 @@ const renderHouseholds = (households) => {
     `).join("");
 };
 
+const renderHouseholdFilter = (selector, households, emptyLabel) => {
+    const filter = document.querySelector(selector);
+    if (!filter) {
+        return;
+    }
+
+    const previousValue = filter.value;
+    filter.innerHTML = [
+        `<option value="">${emptyLabel}</option>`,
+        ...households.map((household) => `<option value="${household.id}">${household.name} · ${formatEnum(household.type)}</option>`)
+    ].join("");
+
+    if (previousValue && households.some((household) => String(household.id) === previousValue)) {
+        filter.value = previousValue;
+    }
+};
+
+const getDeviceHouseholdFilter = () => (
+    document.querySelector("[data-device-household-filter]")?.value || ""
+);
+
+const getAnomalyHouseholdFilter = () => (
+    document.querySelector("[data-anomaly-household-filter]")?.value || ""
+);
+
 const loadSimulationHouseholds = async () => {
     const select = document.querySelector("[data-simulation-household]");
     if (!select) {
@@ -476,19 +501,28 @@ const loadCoreStructure = async () => {
         return;
     }
 
-    const [householdsResponse, devicesResponse] = await Promise.all([
-        apiFetch("/api/households"),
-        apiFetch("/api/devices")
-    ]);
+    const householdsResponse = await apiFetch("/api/households");
 
-    if (!householdsResponse.ok || !devicesResponse.ok) {
+    if (!householdsResponse.ok) {
         throw new Error("Не вдалося завантажити структуру енергосистеми.");
     }
 
     const households = await householdsResponse.json();
+    renderHouseholds(households);
+    renderHouseholdFilter("[data-device-household-filter]", households, "Усі групи");
+
+    const householdId = getDeviceHouseholdFilter();
+    const devicesUrl = householdId
+        ? `/api/devices?householdId=${encodeURIComponent(householdId)}`
+        : "/api/devices";
+    const devicesResponse = await apiFetch(devicesUrl);
+
+    if (!devicesResponse.ok) {
+        throw new Error("Не вдалося завантажити структуру енергосистеми.");
+    }
+
     const devices = await devicesResponse.json();
 
-    renderHouseholds(households);
     renderDevices(devices);
 };
 
@@ -719,6 +753,16 @@ const bindCoreForms = () => {
             } catch (error) {
                 setMessage(householdMessage, error.message);
             }
+        }
+    });
+
+    document.querySelector("[data-device-household-filter]")?.addEventListener("change", async () => {
+        setMessage(deviceMessage, "");
+        resetDeviceForm(deviceForm);
+        try {
+            await loadCoreStructure();
+        } catch (error) {
+            setMessage(deviceMessage, error.message);
         }
     });
 
@@ -1164,6 +1208,10 @@ const bindMLControls = () => {
     const simulateBtn = document.querySelector("[data-simulate-anomaly]");
     const message = document.querySelector("[data-ml-message]");
 
+    document.querySelector("[data-anomaly-household-filter]")?.addEventListener("change", async () => {
+        await loadAnomalies();
+    });
+
     simulateBtn?.addEventListener("click", async () => {
         try {
             const response = await apiFetch("/api/ml/simulate-anomaly", { method: "POST" });
@@ -1215,16 +1263,41 @@ const loadDeviceContribution = async () => {
     }
 };
 
+const loadAnomalyHouseholdFilter = async () => {
+    const filter = document.querySelector("[data-anomaly-household-filter]");
+    if (!filter || filter.dataset.loaded === "true") {
+        return;
+    }
+
+    const response = await apiFetch("/api/households");
+    if (!response.ok) {
+        throw new Error("Не вдалося завантажити групи пристроїв.");
+    }
+
+    const households = await response.json();
+    renderHouseholdFilter("[data-anomaly-household-filter]", households, "Усі групи");
+    filter.dataset.loaded = "true";
+};
+
 const loadAnomalies = async () => {
     const tbody = document.querySelector("[data-anomaly-list]");
     if (!tbody) {
         return;
     }
 
+    await loadAnomalyHouseholdFilter();
+
     const limit = tbody.dataset.anomalyLimit;
-    const anomalyUrl = limit && limit !== "all"
-        ? `/api/ml/anomalies?limit=${encodeURIComponent(limit)}`
-        : "/api/ml/anomalies";
+    const params = new URLSearchParams();
+    if (limit && limit !== "all") {
+        params.set("limit", limit);
+    }
+    const householdId = getAnomalyHouseholdFilter();
+    if (householdId) {
+        params.set("householdId", householdId);
+    }
+    const query = params.toString();
+    const anomalyUrl = query ? `/api/ml/anomalies?${query}` : "/api/ml/anomalies";
     const columnCount = tbody.closest("table")?.querySelectorAll("thead th").length || 6;
 
     try {

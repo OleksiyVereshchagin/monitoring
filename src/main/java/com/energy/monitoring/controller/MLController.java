@@ -93,9 +93,16 @@ public class MLController {
     @GetMapping("/anomalies")
     public ResponseEntity<List<AnomalyResponse>> getAnomalies(
             @RequestParam(defaultValue = "0") int limit,
+            @RequestParam(required = false) Long householdId,
             Authentication authentication) {
         Long userId = getUserId(authentication);
-        List<Device> devices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        List<Device> devices = householdId != null
+                ? deviceRepository.findAllByUserIdAndHouseholdIdOrderByCreatedAtDesc(userId, householdId)
+                : deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        if (devices.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
         List<Anomaly> anomalies = anomalyRepository.findAllByDeviceInOrderByTimestampDesc(devices);
         List<AnomalyResponse> response = anomalies.stream()
                 .map(a -> new AnomalyResponse(

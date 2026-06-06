@@ -279,6 +279,83 @@ a:hover {
     margin-bottom: 24px;
 }
 
+.dashboard-ml-panel {
+    margin-top: 24px;
+}
+
+.dashboard-ml-wide {
+    display: grid;
+    gap: 4px;
+    padding-block: 20px;
+}
+
+.dashboard-ml-wide .panel-header {
+    margin-bottom: 8px;
+}
+
+.dashboard-ml-wide .panel-header h2 {
+    font-size: 22px;
+}
+
+.dashboard-ml-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.dashboard-ml-actions .form-message {
+    flex: 1 1 260px;
+    min-height: 0;
+    margin: 0;
+}
+
+.household-compact-panel {
+    margin-bottom: 24px;
+    padding: 18px 20px;
+}
+
+.household-compact-panel .panel-header {
+    margin-bottom: 14px;
+}
+
+.household-compact-layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.household-inline-form {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+.household-inline-form .form-actions,
+.household-inline-form .form-message {
+    grid-column: 1 / -1;
+}
+
+.household-inline-list {
+    display: flex;
+    gap: 10px;
+    max-height: 144px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 2px 8px 0;
+}
+
+.household-inline-list .entity-item {
+    align-items: flex-start;
+    flex: 0 0 240px;
+    min-height: 118px;
+}
+
+.household-inline-list .entity-actions {
+    justify-content: flex-start;
+}
+
 .device-page-grid {
     align-items: stretch;
     grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
@@ -494,6 +571,26 @@ a:hover {
     gap: 12px;
 }
 
+.list-filter {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 16px;
+    max-width: 360px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.list-filter select {
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text);
+    font: inherit;
+    padding: 9px 11px;
+}
+
 .entity-list {
     display: grid;
     gap: 10px;
@@ -646,6 +743,23 @@ a:hover {
 
     .management-grid {
         grid-template-columns: 1fr;
+    }
+
+    .household-compact-layout,
+    .household-inline-form {
+        grid-template-columns: 1fr;
+    }
+
+    .household-inline-list {
+        display: grid;
+        max-height: 240px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .household-inline-list .entity-item {
+        min-height: 0;
     }
 
     .simulation-form-grid,

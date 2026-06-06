@@ -12,7 +12,7 @@
 <body data-auth-page="protected">
 <header th:replace="~{fragments/topbar :: topbar}"></header>
 
-<main class="page">
+<main class="page" data-core-manager>
     <section class="page-heading">
         <p class="eyebrow">Огляд системи</p>
         <h1>Огляд</h1>
@@ -38,67 +38,6 @@
         </article>
     </section>
 
-    <section class="management-grid" data-core-manager>
-        <article class="panel">
-            <div class="panel-header">
-                <div>
-                    <p class="eyebrow">Структура</p>
-                    <h2>Групи пристроїв</h2>
-                </div>
-            </div>
-            <form class="compact-form" data-household-form>
-                <label>
-                    Назва
-                    <input type="text" name="name" placeholder="My Apartment" required>
-                </label>
-                <label>
-                    Тип
-                    <select name="type" required>
-                        <option value="APARTMENT">Квартира</option>
-                        <option value="HOUSE">Будинок</option>
-                        <option value="OFFICE">Офіс</option>
-                        <option value="COTTAGE">Дача</option>
-                        <option value="OTHER">Інше</option>
-                    </select>
-                </label>
-                <div class="form-actions">
-                    <button class="button" type="submit" data-household-submit>Створити групу</button>
-                    <button class="button button-outline" type="button" data-household-cancel hidden>Скасувати</button>
-                </div>
-                <p class="form-message" data-household-message></p>
-            </form>
-            <div class="entity-list" data-household-list>
-                <p class="muted">Груп ще немає.</p>
-            </div>
-        </article>
-
-        <article class="panel">
-            <div class="panel-header">
-                <div>
-                    <p class="eyebrow">Пристрої</p>
-                    <h2>Мої пристрої</h2>
-                </div>
-            </div>
-            <p class="muted">Додайте пристрої та налаштуйте їхній стан, щоб бачити реалістичну картину споживання.</p>
-            <a class="button" th:href="@{/devices}">Керувати пристроями</a>
-        </article>
-    </section>
-
-    <section class="panel" style="margin-top: 0; margin-bottom: 24px;">
-        <div class="panel-header">
-            <div>
-                <p class="eyebrow">Нейромережа</p>
-                <h2>Перевірка відхилень</h2>
-            </div>
-        </div>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <button class="button button-outline" type="button" data-simulate-anomaly>
-                Створити тестову аномалію
-            </button>
-            <p class="form-message" data-ml-message style="width: 100%;"></p>
-        </div>
-    </section>
-
     <section class="panel">
         <div class="panel-header">
             <h2>Графік споживання</h2>
@@ -106,6 +45,21 @@
         </div>
         <div class="chart-placeholder">
             <canvas id="consumptionChart" aria-label="Графік споживання"></canvas>
+        </div>
+    </section>
+
+    <section class="panel dashboard-ml-panel dashboard-ml-wide">
+        <div class="panel-header">
+            <div>
+                <p class="eyebrow">Нейромережа</p>
+                <h2>Перевірка відхилень</h2>
+            </div>
+        </div>
+        <div class="dashboard-ml-actions">
+            <button class="button button-outline" type="button" data-simulate-anomaly>
+                Створити тестову аномалію
+            </button>
+            <p class="form-message" data-ml-message></p>
         </div>
     </section>
 

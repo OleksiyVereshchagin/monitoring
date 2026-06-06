@@ -9,6 +9,8 @@ import java.time.LocalTime;
 
 public record SimulationProfileResponse(
         Long id,
+        Long householdId,
+        String householdName,
         Integer occupants,
         BigDecimal areaM2,
         String city,

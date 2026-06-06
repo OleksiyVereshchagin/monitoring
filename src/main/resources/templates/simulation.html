@@ -13,28 +13,35 @@
 
 <main class="page narrow-page">
     <section class="page-heading">
-        <p class="eyebrow">Сценарій дому</p>
-        <h1>Налаштування поведінки споживання</h1>
-        <p>Опишіть склад домогосподарства та звичний розпорядок, щоб дані споживання виглядали ближче до реального життя.</p>
+        <p class="eyebrow">Профіль об’єкта</p>
+        <h1>Налаштування сценарію споживання</h1>
+        <p>Оберіть групу пристроїв і опишіть, як зазвичай використовується цей об’єкт: житло, офіс або дача.</p>
     </section>
 
     <section class="panel">
         <div class="panel-header">
             <div>
-                    <p class="eyebrow">Оселя</p>
+                    <p class="eyebrow">Об’єкт</p>
                     <h2>Основні параметри</h2>
             </div>
         </div>
 
         <form class="compact-form" data-simulation-form>
+            <label>
+                Група пристроїв
+                <select name="simulationHouseholdId" data-simulation-household required>
+                    <option value="">Спочатку створіть групу</option>
+                </select>
+            </label>
+
             <div class="simulation-form-grid">
                 <label>
-                    Кількість мешканців
+                    <span data-occupants-label>Кількість мешканців</span>
                     <input type="number" name="occupants" min="1" max="10" step="1" required>
                 </label>
 
                 <label>
-                    Житлова площа, м²
+                    <span data-area-label>Площа, м²</span>
                     <input type="number" name="areaM2" min="10" step="0.1" required>
                 </label>
             </div>
@@ -67,7 +74,7 @@
                     <option value="Чернівецька">Чернівецька область</option>
                     <option value="Чернігівська">Чернігівська область</option>
                 </select>
-                <small class="muted">Оберіть область, у якій розташована оселя.</small>
+                <small class="muted" data-region-hint>Оберіть область, у якій розташований об’єкт.</small>
             </label>
 
             <div class="simulation-form-grid">
@@ -81,7 +88,7 @@
                 </label>
 
                 <label>
-                    Сценарій перебування вдома
+                    <span data-presence-label>Режим використання об’єкта</span>
                     <select name="presenceMode" required data-presence-mode>
                         <option value="STANDARD_WORKDAY">Регулярна відсутність у будні</option>
                         <option value="PARTLY_HOME">Гнучкий день: частково вдома</option>
@@ -93,8 +100,8 @@
 
             <section class="simulation-section custom-schedule-section" data-custom-schedule-section hidden>
                 <div>
-                    <p class="eyebrow">Власний графік</p>
-                    <p class="muted">Додайте періоди, коли вдома є активність. Для кожного періоду можна окремо дозволити потужні прилади.</p>
+                    <p class="eyebrow" data-custom-schedule-title>Власний графік</p>
+                    <p class="muted" data-custom-schedule-description>Додайте періоди активного використання об’єкта. Для кожного періоду можна окремо дозволити потужні прилади.</p>
                 </div>
 
                 <div class="custom-schedule-grid">
@@ -207,10 +214,10 @@
                 </div>
             </section>
 
-            <section class="simulation-section">
+            <section class="simulation-section" data-active-days-section>
                 <div>
-                    <p class="eyebrow">Вихідні дні</p>
-                    <p class="muted">Позначте дні тижня, які для вашої оселі зазвичай є вихідними.</p>
+                    <p class="eyebrow" data-active-days-title>Активні дні</p>
+                    <p class="muted" data-active-days-description>Позначте дні тижня, коли об’єкт зазвичай використовується активніше.</p>
                 </div>
                 <div class="weekday-picker compact" data-weekend-days>
                     <label><input type="checkbox" name="weekendDay" value="MONDAY"><span>Пн</span></label>
@@ -223,27 +230,27 @@
                 </div>
             </section>
 
-            <section class="simulation-section">
+            <section class="simulation-section" data-home-routine-section>
                 <div>
-                    <p class="eyebrow">Сон і регулярна відсутність</p>
-                    <p class="muted">Вкажіть звичний час сну та період, коли вдома зазвичай нікого немає.</p>
+                    <p class="eyebrow" data-routine-title>Сон і регулярна відсутність</p>
+                    <p class="muted" data-routine-description>Вкажіть звичний час сну та період, коли вдома зазвичай нікого немає.</p>
                 </div>
 
                 <div class="time-range-grid">
-                    <label>
-                        Сон з
+                    <label data-sleep-field>
+                        <span>Сон з</span>
                         <input type="time" name="sleepStart" required>
                     </label>
-                    <label>
-                        Сон до
+                    <label data-sleep-field>
+                        <span>Сон до</span>
                         <input type="time" name="sleepEnd" required>
                     </label>
                     <label>
-                        Зазвичай нікого вдома з
+                        <span data-away-start-label>Період низької активності з</span>
                         <input type="time" name="awayStart" required>
                     </label>
                     <label>
-                        Зазвичай нікого вдома до
+                        <span data-away-end-label>Період низької активності до</span>
                         <input type="time" name="awayEnd" required>
                     </label>
                 </div>

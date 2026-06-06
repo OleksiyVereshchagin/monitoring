@@ -146,4 +146,33 @@ public interface ReadingRepository extends JpaRepository<Reading, Long>, JpaSpec
                                               @Param("source") String source,
                                               @Param("from") LocalDateTime from,
                                               @Param("to") LocalDateTime to);
+
+    @Modifying
+    @Query(value = """
+            DELETE FROM readings r
+            USING devices d
+            WHERE r.device_id = d.id
+            AND d.user_id = :userId
+            AND d.household_id = :householdId
+            AND r.source = :source
+            AND r.timestamp BETWEEN :from AND :to
+            """,
+            nativeQuery = true)
+    int deleteGeneratedReadingsForUserAndHouseholdBetween(@Param("userId") Long userId,
+                                                          @Param("householdId") Long householdId,
+                                                          @Param("source") String source,
+                                                          @Param("from") LocalDateTime from,
+                                                          @Param("to") LocalDateTime to);
+
+    @Modifying
+    @Query("""
+            DELETE FROM Reading r
+            WHERE r.device = :device
+            AND r.source = :source
+            AND r.timestamp BETWEEN :from AND :to
+            """)
+    int deleteGeneratedReadingsForDeviceBetween(@Param("device") Device device,
+                                                @Param("source") String source,
+                                                @Param("from") LocalDateTime from,
+                                                @Param("to") LocalDateTime to);
 }

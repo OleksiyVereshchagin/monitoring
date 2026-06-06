@@ -110,7 +110,7 @@ public class DataGeneratorService {
                 continue;
             }
 
-            SimulationProfile profile = simulationProfileRepository.findByUserId(device.getUser().getId()).orElse(null);
+            SimulationProfile profile = resolveProfile(device);
             Set<LocalDateTime> existing = new HashSet<>(
                     readingRepository.findTimestampsByDeviceAndTimestampBetween(device, from, to)
             );
@@ -135,6 +135,51 @@ public class DataGeneratorService {
             }
         }
 
+        return created;
+    }
+
+    private SimulationProfile resolveProfile(Device device) {
+        if (device.getHousehold() != null) {
+            return simulationProfileRepository
+                    .findFirstByUserIdAndHouseholdIdOrderByIdDesc(
+                            device.getUser().getId(),
+                            device.getHousehold().getId()
+                    )
+                    .orElse(null);
+        }
+
+        return simulationProfileRepository
+                .findFirstByUserIdOrderByIdDesc(device.getUser().getId())
+                .orElse(null);
+    }
+
+    @Transactional
+    public int regenerateRecentDataForUserAndHousehold(Long userId, Long householdId) {
+        long startedAt = System.nanoTime();
+        LocalDateTime now = alignToTenMinuteStep(LocalDateTime.now());
+        LocalDateTime from = now.minusHours(SCHEDULE_GAP_HOURS);
+        List<Device> devices = deviceRepository.findAllByUserIdAndHouseholdIdOrderByCreatedAtDesc(userId, householdId);
+        if (devices.isEmpty()) {
+            log.info("DataGenerator: household regeneration skipped, userId={}, householdId={}, no devices", userId, householdId);
+            return 0;
+        }
+
+        int deleted = 0;
+        for (Device device : devices) {
+            deleted += readingRepository.deleteGeneratedReadingsForDeviceBetween(device, GENERATOR_SOURCE, from, now);
+        }
+
+        int created = generateMissingReadings(devices, from, now);
+        long durationMs = (System.nanoTime() - startedAt) / 1_000_000;
+        log.info(
+                "DataGenerator: household regeneration completed, userId={}, householdId={}, devices={}, deleted={}, created={}, durationMs={}",
+                userId,
+                householdId,
+                devices.size(),
+                deleted,
+                created,
+                durationMs
+        );
         return created;
     }
 

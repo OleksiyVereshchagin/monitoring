@@ -3,10 +3,13 @@ package com.energy.monitoring.service;
 import com.energy.monitoring.dto.SimulationProfileRequest;
 import com.energy.monitoring.dto.SimulationProfileResponse;
 import com.energy.monitoring.entity.ActivityLevel;
+import com.energy.monitoring.entity.Household;
+import com.energy.monitoring.entity.HouseholdType;
 import com.energy.monitoring.entity.PresenceMode;
 import com.energy.monitoring.entity.SimulationProfile;
 import com.energy.monitoring.entity.User;
 import com.energy.monitoring.exception.ResourceNotFoundException;
+import com.energy.monitoring.repository.HouseholdRepository;
 import com.energy.monitoring.repository.SimulationProfileRepository;
 import com.energy.monitoring.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,67 +32,95 @@ public class SimulationProfileService {
     private static final LocalTime DEFAULT_SLEEP_END = LocalTime.of(7, 0);
     private static final LocalTime DEFAULT_AWAY_START = LocalTime.of(9, 0);
     private static final LocalTime DEFAULT_AWAY_END = LocalTime.of(17, 30);
+    private static final String OFFICE_ACTIVE_DAYS = "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY";
+    private static final LocalTime OFFICE_WORK_START = LocalTime.of(9, 0);
+    private static final LocalTime OFFICE_WORK_END = LocalTime.of(18, 0);
+    private static final String COTTAGE_VISIT_DAYS = "SATURDAY,SUNDAY";
+    private static final LocalTime COTTAGE_VISIT_START = LocalTime.of(10, 0);
+    private static final LocalTime COTTAGE_VISIT_END = LocalTime.of(20, 0);
     private static final LocalTime DEFAULT_CUSTOM_HOME_START_1 = LocalTime.of(7, 0);
     private static final LocalTime DEFAULT_CUSTOM_HOME_END_1 = LocalTime.of(9, 0);
     private final SimulationProfileRepository simulationProfileRepository;
+    private final HouseholdRepository householdRepository;
     private final UserRepository userRepository;
     private final DataGeneratorService dataGeneratorService;
 
     @Transactional
-    public SimulationProfileResponse getOrCreate(Authentication authentication) {
+    public SimulationProfileResponse getOrCreate(Long householdId, Authentication authentication) {
         User user = getCurrentUser(authentication);
-        return toResponse(getOrCreateForUser(user));
+        Household household = resolveHousehold(user, householdId);
+        return toResponse(getOrCreateForHousehold(user, household));
     }
 
     @Transactional
-    public SimulationProfileResponse update(SimulationProfileRequest request, Authentication authentication) {
+    public SimulationProfileResponse update(SimulationProfileRequest request, Long householdId, Authentication authentication) {
         User user = getCurrentUser(authentication);
-        SimulationProfile profile = getOrCreateForUser(user);
+        Household household = resolveHousehold(user, householdId);
+        SimulationProfile profile = getOrCreateForHousehold(user, household);
         applyRequest(profile, request);
         return toResponse(simulationProfileRepository.save(profile));
     }
 
     @Transactional
-    public SimulationProfileResponse applyDefaults(Authentication authentication) {
+    public SimulationProfileResponse applyDefaults(Long householdId, Authentication authentication) {
         User user = getCurrentUser(authentication);
-        SimulationProfile profile = getOrCreateForUser(user);
+        Household household = resolveHousehold(user, householdId);
+        SimulationProfile profile = getOrCreateForHousehold(user, household);
         applyDefaults(profile);
         return toResponse(simulationProfileRepository.save(profile));
     }
 
     @Transactional
-    public int regenerateRecent(Authentication authentication) {
+    public int regenerateRecent(Long householdId, Authentication authentication) {
         User user = getCurrentUser(authentication);
-        getOrCreateForUser(user);
-        return dataGeneratorService.regenerateRecentDataForUser(user.getId());
+        Household household = resolveHousehold(user, householdId);
+        getOrCreateForHousehold(user, household);
+        return dataGeneratorService.regenerateRecentDataForUserAndHousehold(user.getId(), household.getId());
     }
 
-    private SimulationProfile getOrCreateForUser(User user) {
-        return simulationProfileRepository.findByUserId(user.getId())
-                .orElseGet(() -> simulationProfileRepository.save(defaultProfile(user)));
+    private SimulationProfile getOrCreateForHousehold(User user, Household household) {
+        return simulationProfileRepository
+                .findFirstByUserIdAndHouseholdIdOrderByIdDesc(user.getId(), household.getId())
+                .orElseGet(() -> simulationProfileRepository.save(defaultProfile(user, household)));
     }
 
-    private SimulationProfile defaultProfile(User user) {
+    private SimulationProfile defaultProfile(User user, Household household) {
         SimulationProfile profile = SimulationProfile.builder()
                 .user(user)
+                .household(household)
                 .build();
         applyDefaults(profile);
         return profile;
     }
 
+    private Household resolveHousehold(User user, Long householdId) {
+        if (householdId != null) {
+            return householdRepository.findByIdAndUserId(householdId, user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Household not found"));
+        }
+
+        return householdRepository.findAllByUserIdOrderByCreatedAtDesc(user.getId()).stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Create a household before configuring simulation"));
+    }
+
     private void applyDefaults(SimulationProfile profile) {
-        profile.setOccupants(DEFAULT_OCCUPANTS);
-        profile.setAreaM2(DEFAULT_AREA_M2);
+        HouseholdType type = profile.getHousehold() != null ? profile.getHousehold().getType() : null;
+        boolean office = type == HouseholdType.OFFICE;
+        boolean cottage = type == HouseholdType.COTTAGE;
+
+        profile.setOccupants(office ? 6 : DEFAULT_OCCUPANTS);
+        profile.setAreaM2(office ? BigDecimal.valueOf(85) : cottage ? BigDecimal.valueOf(45) : DEFAULT_AREA_M2);
         profile.setCity(DEFAULT_CITY);
-        profile.setActivityLevel(ActivityLevel.NORMAL);
-        profile.setPresenceMode(PresenceMode.STANDARD_WORKDAY);
+        profile.setActivityLevel(cottage ? ActivityLevel.ECONOMY : ActivityLevel.NORMAL);
+        profile.setPresenceMode(cottage ? PresenceMode.PARTLY_HOME : PresenceMode.STANDARD_WORKDAY);
         profile.setSleepStart(DEFAULT_SLEEP_START);
         profile.setSleepEnd(DEFAULT_SLEEP_END);
-        profile.setAwayStart(DEFAULT_AWAY_START);
-        profile.setAwayEnd(DEFAULT_AWAY_END);
-        profile.setWeekendDays(DEFAULT_WEEKEND_DAYS);
-        profile.setCustomHomeStart1(DEFAULT_CUSTOM_HOME_START_1);
-        profile.setCustomHomeEnd1(DEFAULT_CUSTOM_HOME_END_1);
+        profile.setAwayStart(office ? OFFICE_WORK_START : cottage ? COTTAGE_VISIT_START : DEFAULT_AWAY_START);
+        profile.setAwayEnd(office ? OFFICE_WORK_END : cottage ? COTTAGE_VISIT_END : DEFAULT_AWAY_END);
+        profile.setWeekendDays(office ? OFFICE_ACTIVE_DAYS : cottage ? COTTAGE_VISIT_DAYS : DEFAULT_WEEKEND_DAYS);
+        profile.setCustomHomeStart1(office ? OFFICE_WORK_START : cottage ? COTTAGE_VISIT_START : DEFAULT_CUSTOM_HOME_START_1);
+        profile.setCustomHomeEnd1(office ? OFFICE_WORK_END : cottage ? COTTAGE_VISIT_END : DEFAULT_CUSTOM_HOME_END_1);
         profile.setCustomHomeActivity1(ActivityLevel.NORMAL);
         profile.setCustomHomeHeavyAllowed1(false);
         profile.setCustomHomeStart2(null);
@@ -160,6 +191,8 @@ public class SimulationProfileService {
     private SimulationProfileResponse toResponse(SimulationProfile profile) {
         return new SimulationProfileResponse(
                 profile.getId(),
+                profile.getHousehold() != null ? profile.getHousehold().getId() : null,
+                profile.getHousehold() != null ? profile.getHousehold().getName() : null,
                 profile.getOccupants(),
                 profile.getAreaM2(),
                 profile.getCity(),

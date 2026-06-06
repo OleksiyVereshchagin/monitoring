@@ -503,7 +503,9 @@ a:hover {
 }
 
 .device-management-list {
+    align-content: start;
     flex: 1;
+    grid-auto-rows: max-content;
     min-height: 0;
     max-height: none;
     overflow-y: auto;
@@ -529,7 +531,8 @@ a:hover {
 }
 
 .device-management-list .entity-item {
-    align-items: stretch;
+    align-items: start;
+    align-self: start;
     display: grid;
     gap: 12px;
 }

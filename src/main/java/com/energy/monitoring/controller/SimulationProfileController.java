@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -24,26 +25,36 @@ public class SimulationProfileController {
     private final SimulationProfileService simulationProfileService;
 
     @GetMapping
-    public ResponseEntity<SimulationProfileResponse> get(Authentication authentication) {
-        return ResponseEntity.ok(simulationProfileService.getOrCreate(authentication));
+    public ResponseEntity<SimulationProfileResponse> get(
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(simulationProfileService.getOrCreate(householdId, authentication));
     }
 
     @PutMapping
     public ResponseEntity<SimulationProfileResponse> update(
             @Valid @RequestBody SimulationProfileRequest request,
+            @RequestParam(required = false) Long householdId,
             Authentication authentication
     ) {
-        return ResponseEntity.ok(simulationProfileService.update(request, authentication));
+        return ResponseEntity.ok(simulationProfileService.update(request, householdId, authentication));
     }
 
     @PostMapping("/defaults")
-    public ResponseEntity<SimulationProfileResponse> defaults(Authentication authentication) {
-        return ResponseEntity.ok(simulationProfileService.applyDefaults(authentication));
+    public ResponseEntity<SimulationProfileResponse> defaults(
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(simulationProfileService.applyDefaults(householdId, authentication));
     }
 
     @PostMapping("/regenerate-recent")
-    public ResponseEntity<Map<String, Object>> regenerateRecent(Authentication authentication) {
-        int created = simulationProfileService.regenerateRecent(authentication);
+    public ResponseEntity<Map<String, Object>> regenerateRecent(
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication
+    ) {
+        int created = simulationProfileService.regenerateRecent(householdId, authentication);
         return ResponseEntity.ok(Map.of(
                 "status", "ok",
                 "created", created

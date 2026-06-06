@@ -28,7 +28,16 @@ const apiFetch = async (url, options = {}) => {
         ...(options.headers || {})
     };
 
-    const response = await fetch(url, { ...options, headers });
+    let response;
+    try {
+        response = await fetch(url, { ...options, headers });
+    } catch (error) {
+        if (error.name === "AbortError") {
+            throw error;
+        }
+        throw new Error("Сервер тимчасово недоступний. Перевірте, чи запущений додаток, і спробуйте ще раз.");
+    }
+
     if (response.status === 401) {
         sessionStorage.removeItem(TOKEN_KEY);
         sessionStorage.removeItem(USERNAME_KEY);
@@ -207,7 +216,6 @@ const formatEnum = (value) => {
         APARTMENT: "Квартира",
         HOUSE: "Будинок",
         OFFICE: "Офіс",
-        GARAGE: "Гараж",
         COTTAGE: "Дача",
         FRIDGE: "Холодильник",
         REFRIGERATOR: "Холодильник",
@@ -269,12 +277,15 @@ const formatNumber = (value, digits = 2) => {
     });
 };
 
+let cachedHouseholds = [];
 let cachedDevices = [];
+let cachedSimulationHouseholds = [];
 
 const renderHouseholds = (households) => {
     const list = document.querySelector("[data-household-list]");
     const select = document.querySelector("[data-household-select]");
     const count = document.querySelector("[data-household-count]");
+    cachedHouseholds = households;
 
     if (count) {
         count.textContent = households.length;
@@ -301,8 +312,124 @@ const renderHouseholds = (households) => {
                 <strong>${household.name}</strong>
                 <span>${formatEnum(household.type)}</span>
             </div>
+            <div class="entity-actions">
+                <button class="text-button" type="button" data-household-edit="${household.id}">Редагувати</button>
+                <button class="text-button danger" type="button" data-household-delete="${household.id}">Видалити</button>
+            </div>
         </article>
     `).join("");
+};
+
+const loadSimulationHouseholds = async () => {
+    const select = document.querySelector("[data-simulation-household]");
+    if (!select) {
+        return "";
+    }
+
+    const response = await apiFetch("/api/households");
+    if (!response.ok) {
+        throw new Error("Не вдалося завантажити групи пристроїв.");
+    }
+
+    const households = await response.json();
+    cachedSimulationHouseholds = households;
+    const previousValue = select.value;
+    select.innerHTML = households.length
+        ? households.map((household) => `<option value="${household.id}" data-type="${household.type}">${household.name} · ${formatEnum(household.type)}</option>`).join("")
+        : `<option value="">Спочатку створіть групу</option>`;
+
+    if (previousValue && households.some((household) => String(household.id) === previousValue)) {
+        select.value = previousValue;
+    }
+
+    updateSimulationObjectUi();
+    return select.value;
+};
+
+const getSelectedSimulationHouseholdId = () => (
+    document.querySelector("[data-simulation-household]")?.value || ""
+);
+
+const getSelectedSimulationHousehold = () => {
+    const selectedId = getSelectedSimulationHouseholdId();
+    return cachedSimulationHouseholds.find((household) => String(household.id) === selectedId);
+};
+
+const setText = (selector, value) => {
+    const element = document.querySelector(selector);
+    if (element) {
+        element.textContent = value;
+    }
+};
+
+const updatePresenceOptions = (mode) => {
+    const select = document.querySelector("[data-presence-mode]");
+    if (!select) {
+        return;
+    }
+
+    const labels = mode === "OFFICE"
+        ? {
+            STANDARD_WORKDAY: "Робочі години у будні",
+            PARTLY_HOME: "Гнучкий графік офісу",
+            OFTEN_HOME: "Офіс часто активний",
+            CUSTOM: "Власний графік роботи"
+        }
+        : mode === "COTTAGE"
+            ? {
+                STANDARD_WORKDAY: "Рідкі короткі візити",
+                PARTLY_HOME: "Візити у вибрані дні",
+                OFTEN_HOME: "Часте сезонне використання",
+                CUSTOM: "Власний графік візитів"
+            }
+            : {
+                STANDARD_WORKDAY: "Регулярна відсутність у будні",
+                PARTLY_HOME: "Гнучкий день: частково вдома",
+                OFTEN_HOME: "Більшість часу хтось вдома",
+                CUSTOM: "Власний графік за інтервалами нижче"
+            };
+
+    Array.from(select.options).forEach((option) => {
+        option.textContent = labels[option.value] || option.textContent;
+    });
+};
+
+const updateSimulationObjectUi = () => {
+    const type = getSelectedSimulationHousehold()?.type || "APARTMENT";
+    const isOffice = type === "OFFICE";
+    const isCottage = type === "COTTAGE";
+    const hideSleep = isOffice || isCottage;
+
+    setText("[data-occupants-label]", isOffice ? "Кількість працівників" : isCottage ? "Типова кількість відвідувачів" : "Кількість мешканців");
+    setText("[data-area-label]", isOffice ? "Площа офісу, м²" : isCottage ? "Площа дачі, м²" : "Площа, м²");
+    setText("[data-presence-label]", isOffice ? "Режим роботи офісу" : isCottage ? "Режим використання дачі" : "Режим використання об’єкта");
+    setText("[data-active-days-title]", isOffice ? "Робочі дні" : isCottage ? "Дні візитів" : "Активні дні");
+    setText("[data-active-days-description]", isOffice
+        ? "Позначте дні, коли офіс зазвичай працює."
+        : isCottage
+            ? "Позначте дні, коли дачу найчастіше відвідують."
+            : "Позначте дні тижня, коли об’єкт зазвичай використовується активніше.");
+    setText("[data-routine-title]", isOffice ? "Робочі години" : isCottage ? "Типові години візиту" : "Сон і регулярна відсутність");
+    setText("[data-routine-description]", isOffice
+        ? "Вкажіть період, коли офіс зазвичай активний."
+        : isCottage
+            ? "Вкажіть години, коли дача зазвичай використовується під час візиту."
+            : "Вкажіть звичний час сну та період, коли вдома зазвичай нікого немає.");
+    setText("[data-away-start-label]", isOffice ? "Робочий день з" : isCottage ? "Візит з" : "Період низької активності з");
+    setText("[data-away-end-label]", isOffice ? "Робочий день до" : isCottage ? "Візит до" : "Період низької активності до");
+    setText("[data-custom-schedule-title]", isOffice ? "Власний графік роботи" : isCottage ? "Власний графік візитів" : "Власний графік");
+    setText("[data-custom-schedule-description]", isOffice
+        ? "Додайте періоди, коли офіс активно використовується."
+        : isCottage
+            ? "Додайте періоди, коли дача використовується активніше."
+            : "Додайте періоди активного використання об’єкта. Для кожного періоду можна окремо дозволити потужні прилади.");
+
+    document.querySelectorAll("[data-sleep-field]").forEach((field) => {
+        field.hidden = hideSleep;
+        field.querySelector("input")?.toggleAttribute("required", !hideSleep);
+    });
+
+    updatePresenceOptions(type);
 };
 
 const renderDevices = (devices) => {
@@ -475,9 +602,51 @@ const updateDeviceFromList = async (device, changes, message) => {
     }
 };
 
+const resetHouseholdForm = (householdForm) => {
+    if (!householdForm) {
+        return;
+    }
+
+    delete householdForm.dataset.editingHouseholdId;
+    householdForm.reset();
+
+    const submit = document.querySelector("[data-household-submit]");
+    const cancel = document.querySelector("[data-household-cancel]");
+
+    if (submit) {
+        submit.textContent = "Створити групу";
+    }
+    if (cancel) {
+        cancel.hidden = true;
+    }
+};
+
+const fillHouseholdForm = (householdForm, household) => {
+    if (!householdForm || !household) {
+        return;
+    }
+
+    householdForm.dataset.editingHouseholdId = String(household.id);
+    householdForm.elements.name.value = household.name ?? "";
+    householdForm.elements.type.value = household.type ?? "OTHER";
+
+    const submit = document.querySelector("[data-household-submit]");
+    const cancel = document.querySelector("[data-household-cancel]");
+
+    if (submit) {
+        submit.textContent = "Зберегти зміни";
+    }
+    if (cancel) {
+        cancel.hidden = false;
+    }
+
+    householdForm.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
 const bindCoreForms = () => {
     const householdForm = document.querySelector("[data-household-form]");
     const householdMessage = document.querySelector("[data-household-message]");
+    const householdCancel = document.querySelector("[data-household-cancel]");
     const deviceForm = document.querySelector("[data-device-form]");
     const deviceMessage = document.querySelector("[data-device-message]");
     const deviceCancel = document.querySelector("[data-device-cancel]");
@@ -487,10 +656,13 @@ const bindCoreForms = () => {
         setMessage(householdMessage, "");
 
         const payload = Object.fromEntries(new FormData(householdForm).entries());
+        const editingId = householdForm.dataset.editingHouseholdId;
+        const url = editingId ? `/api/households/${editingId}` : "/api/households";
+        const method = editingId ? "PUT" : "POST";
 
         try {
-            const response = await apiFetch("/api/households", {
-                method: "POST",
+            const response = await apiFetch(url, {
+                method,
                 body: JSON.stringify(payload)
             });
 
@@ -498,11 +670,55 @@ const bindCoreForms = () => {
                 throw new Error("Не вдалося створити групу.");
             }
 
-            householdForm.reset();
+            resetHouseholdForm(householdForm);
             setMessage(householdMessage, "Групу створено.", true);
+            setMessage(householdMessage, editingId ? "Групу оновлено." : "Групу створено.", true);
             await refreshDashboard();
         } catch (error) {
             setMessage(householdMessage, error.message);
+        }
+    });
+
+    householdCancel?.addEventListener("click", () => {
+        resetHouseholdForm(householdForm);
+        setMessage(householdMessage, "");
+    });
+
+    document.querySelector("[data-household-list]")?.addEventListener("click", async (event) => {
+        const editButton = event.target.closest("[data-household-edit]");
+        const deleteButton = event.target.closest("[data-household-delete]");
+
+        if (editButton) {
+            const household = cachedHouseholds.find((item) => String(item.id) === String(editButton.dataset.householdEdit));
+            if (household) {
+                fillHouseholdForm(householdForm, household);
+                setMessage(householdMessage, "");
+            }
+            return;
+        }
+
+        if (deleteButton) {
+            const household = cachedHouseholds.find((item) => String(item.id) === String(deleteButton.dataset.householdDelete));
+            if (!household) {
+                return;
+            }
+
+            if (!window.confirm(`Видалити групу "${household.name}"? Пристрої цієї групи також буде видалено.`)) {
+                return;
+            }
+
+            try {
+                const response = await apiFetch(`/api/households/${household.id}`, { method: "DELETE" });
+                if (!response.ok) {
+                    throw new Error("Не вдалося видалити групу.");
+                }
+
+                resetHouseholdForm(householdForm);
+                setMessage(householdMessage, "Групу видалено.", true);
+                await refreshDashboard();
+            } catch (error) {
+                setMessage(householdMessage, error.message);
+            }
         }
     });
 
@@ -746,6 +962,12 @@ const fillSimulationForm = (profile) => {
         return;
     }
 
+    const householdSelect = document.querySelector("[data-simulation-household]");
+    if (householdSelect && profile.householdId) {
+        householdSelect.value = String(profile.householdId);
+    }
+    updateSimulationObjectUi();
+
     form.elements.occupants.value = profile.occupants ?? 2;
     form.elements.areaM2.value = profile.areaM2 ?? 55;
     form.elements.city.value = normalizeRegionValue(profile.city);
@@ -798,7 +1020,13 @@ const loadSimulationProfile = async () => {
         return;
     }
 
-    const response = await apiFetch("/api/simulation-profile");
+    const householdId = getSelectedSimulationHouseholdId() || await loadSimulationHouseholds();
+    if (!householdId) {
+        setMessage(document.querySelector("[data-simulation-message]"), "Створіть групу пристроїв, щоб налаштувати сценарій споживання.");
+        return;
+    }
+
+    const response = await apiFetch(`/api/simulation-profile?householdId=${encodeURIComponent(householdId)}`);
     if (!response.ok) {
         throw new Error("Не вдалося завантажити профіль симуляції.");
     }
@@ -832,6 +1060,7 @@ const simulationPayloadFromForm = (form) => {
         }
     }
     delete payload.weekendDay;
+    delete payload.simulationHouseholdId;
     return payload;
 };
 
@@ -839,8 +1068,19 @@ const bindSimulationProfile = () => {
     const form = document.querySelector("[data-simulation-form]");
     const message = document.querySelector("[data-simulation-message]");
     const regenerateButton = document.querySelector("[data-simulation-regenerate]");
+    const householdSelect = document.querySelector("[data-simulation-household]");
 
     toggleCustomScheduleSection(form);
+
+    householdSelect?.addEventListener("change", async () => {
+        setMessage(message, "");
+        updateSimulationObjectUi();
+        try {
+            await loadSimulationProfile();
+        } catch (error) {
+            setMessage(message, error.message);
+        }
+    });
 
     form?.elements.presenceMode?.addEventListener("change", () => {
         toggleCustomScheduleSection(form);
@@ -866,7 +1106,12 @@ const bindSimulationProfile = () => {
         setMessage(message, "");
 
         try {
-            const response = await apiFetch("/api/simulation-profile", {
+            const householdId = getSelectedSimulationHouseholdId();
+            if (!householdId) {
+                throw new Error("Спочатку створіть і виберіть групу пристроїв.");
+            }
+
+            const response = await apiFetch(`/api/simulation-profile?householdId=${encodeURIComponent(householdId)}`, {
                 method: "PUT",
                 body: JSON.stringify(simulationPayloadFromForm(form))
             });
@@ -887,7 +1132,18 @@ const bindSimulationProfile = () => {
         regenerateButton.disabled = true;
 
         try {
-            const response = await apiFetch("/api/simulation-profile/regenerate-recent", { method: "POST" });
+            const householdId = getSelectedSimulationHouseholdId();
+            if (!householdId) {
+                throw new Error("РЎРїРѕС‡Р°С‚РєСѓ СЃС‚РІРѕСЂС–С‚СЊ С– РІРёР±РµСЂС–С‚СЊ РіСЂСѓРїСѓ РїСЂРёСЃС‚СЂРѕС—РІ.");
+            }
+
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+            const response = await apiFetch(`/api/simulation-profile/regenerate-recent?householdId=${encodeURIComponent(householdId)}`, {
+                method: "POST",
+                signal: controller.signal
+            });
+            window.clearTimeout(timeoutId);
             if (!response.ok) {
                 throw new Error("Не вдалося перегенерувати дані.");
             }
@@ -895,7 +1151,9 @@ const bindSimulationProfile = () => {
             const result = await response.json();
             setMessage(message, `Готово. Оновлено ${result.created ?? 0} записів споживання.`, true);
         } catch (error) {
-            setMessage(message, error.message);
+            setMessage(message, error.name === "AbortError"
+                ? "Оновлення триває занадто довго. Спробуйте ще раз або перезавантажте сторінку через кілька секунд."
+                : error.message);
         } finally {
             regenerateButton.disabled = false;
         }

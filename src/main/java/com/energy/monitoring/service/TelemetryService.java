@@ -16,6 +16,7 @@ import com.energy.monitoring.exception.ResourceNotFoundException;
 import com.energy.monitoring.repository.DeviceRepository;
 import com.energy.monitoring.repository.HouseholdRepository;
 import com.energy.monitoring.repository.ReadingRepository;
+import com.energy.monitoring.repository.SimulationProfileRepository;
 import com.energy.monitoring.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,7 @@ public class TelemetryService {
     private final DeviceRepository deviceRepository;
     private final HouseholdRepository householdRepository;
     private final ReadingRepository readingRepository;
+    private final SimulationProfileRepository simulationProfileRepository;
     private final UserRepository userRepository;
     private final DataGeneratorService dataGeneratorService;
 
@@ -74,6 +76,7 @@ public class TelemetryService {
     public void deleteHousehold(Long id, Authentication authentication) {
         User user = getCurrentUser(authentication);
         Household household = getUserHousehold(id, user.getId());
+        simulationProfileRepository.deleteAllByUserIdAndHouseholdId(user.getId(), household.getId());
         householdRepository.delete(household);
     }
 

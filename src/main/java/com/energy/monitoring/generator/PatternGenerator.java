@@ -2,6 +2,7 @@ package com.energy.monitoring.generator;
 
 import com.energy.monitoring.entity.BehaviorProfile;
 import com.energy.monitoring.entity.Device;
+import com.energy.monitoring.entity.HouseholdType;
 import com.energy.monitoring.entity.PresenceMode;
 import com.energy.monitoring.entity.SimulationProfile;
 import org.springframework.stereotype.Component;
@@ -190,6 +191,7 @@ public class PatternGenerator {
     private int weeklyEventCount(String type, Device device, SimulationProfile profile, long weekKey) {
         int occupants = profile != null && profile.getOccupants() != null ? profile.getOccupants() : 2;
         double activity = activityFactor(profile);
+        HouseholdType objectType = objectType(profile);
         long seed = eventSeed(device, type, weekKey, 97);
         int variation = (int) (seed % 3) - 1;
 
@@ -208,6 +210,26 @@ public class PatternGenerator {
             case "VACUUM" -> occupants >= 3 ? 2 : 1;
             default -> 2;
         };
+
+        if (objectType == HouseholdType.OFFICE) {
+            base = switch (type) {
+                case "KETTLE", "COFFEE_MACHINE" -> 10 + occupants * 2;
+                case "MICROWAVE" -> 4 + occupants;
+                case "TOASTER" -> 2;
+                case "VACUUM" -> 1;
+                case "DISHWASHER" -> occupants >= 6 ? 2 : 1;
+                case "OVEN", "STOVE", "WASHING_MACHINE", "DRYER", "IRON", "HAIR_DRYER" -> 0;
+                default -> base;
+            };
+        } else if (objectType == HouseholdType.COTTAGE) {
+            double visitFactor = switch (profile != null && profile.getPresenceMode() != null ? profile.getPresenceMode() : PresenceMode.PARTLY_HOME) {
+                case OFTEN_HOME -> 0.75;
+                case PARTLY_HOME -> 0.38;
+                case CUSTOM -> 0.45;
+                case STANDARD_WORKDAY -> 0.25;
+            };
+            base = (int) Math.round(base * visitFactor);
+        }
 
         int count = (int) Math.round(base * activity) + variation;
         if (("OVEN".equals(type) || "STOVE".equals(type)) && seed % 11 == 0) {
@@ -373,31 +395,32 @@ public class PatternGenerator {
         double activity = activityFactor(profile);
         double presence = presenceFactor(profile, hour, dayType);
         double season = seasonFactor(type, time, profile);
+        double objectLoad = objectLoadFactor(profile, hour, dayType);
         double people = 0.72 + Math.min(occupants, 6) * 0.14;
         double areaFactor = 0.82 + Math.min(area, 140.0) / 260.0;
 
         return switch (type) {
             case "FRIDGE", "REFRIGERATOR", "FREEZER", "ROUTER", "SMART_PLUG" ->
-                    0.96 + 0.02 * Math.min(occupants, 4);
+                    (0.96 + 0.02 * Math.min(occupants, 4)) * objectLoad;
             case "LIGHT", "LIGHTING" ->
-                    activity * (0.56 + 0.24 * people + 0.28 * areaFactor) * (0.72 + 0.4 * presence) * season;
+                    activity * objectLoad * (0.56 + 0.24 * people + 0.28 * areaFactor) * (0.72 + 0.4 * presence) * season;
             case "BOILER" ->
-                    activity * (0.58 + 0.34 * people + 0.02 * areaFactor) * season;
+                    activity * objectLoad * (0.58 + 0.34 * people + 0.02 * areaFactor) * season;
             case "WATER_PUMP" ->
-                    activity * (0.58 + 0.34 * people + 0.12 * areaFactor) * season;
+                    activity * objectLoad * (0.58 + 0.34 * people + 0.12 * areaFactor) * season;
             case "GAS_BOILER" ->
-                    activity * (0.72 + 0.12 * people + 0.08 * areaFactor) * season;
+                    activity * objectLoad * (0.72 + 0.12 * people + 0.08 * areaFactor) * season;
             case "AC", "HEATER" ->
-                    activity * (0.68 + 0.18 * people + 0.36 * areaFactor) * (0.7 + 0.42 * presence) * season;
+                    activity * objectLoad * (0.68 + 0.18 * people + 0.36 * areaFactor) * (0.7 + 0.42 * presence) * season;
             case "TV", "COMPUTER", "DESKTOP_PC", "LAPTOP", "MONITOR", "GAME_CONSOLE", "SPEAKERS" ->
-                    activity * (0.74 + 0.18 * people) * (0.52 + 0.64 * presence);
+                    activity * objectLoad * (0.74 + 0.18 * people) * (0.52 + 0.64 * presence);
             case "WASHING_MACHINE", "DRYER", "DISHWASHER" ->
-                    activity * (0.42 + 0.31 * people) * (0.38 + 0.82 * presence);
+                    activity * objectLoad * (0.42 + 0.31 * people) * (0.38 + 0.82 * presence);
             case "OVEN", "STOVE", "MICROWAVE", "KETTLE", "COFFEE_MACHINE", "TOASTER",
                  "IRON", "HAIR_DRYER", "VACUUM" ->
-                    activity * (0.62 + 0.2 * people) * (0.28 + 0.92 * presence);
+                    activity * objectLoad * (0.62 + 0.2 * people) * (0.28 + 0.92 * presence);
             default ->
-                    activity * (0.76 + 0.14 * people) * (0.62 + 0.46 * presence);
+                    activity * objectLoad * (0.76 + 0.14 * people) * (0.62 + 0.46 * presence);
         };
     }
 
@@ -418,11 +441,60 @@ public class PatternGenerator {
             return dayPresence(dayType, hour);
         }
 
+        HouseholdType objectType = objectType(profile);
+        if (objectType == HouseholdType.OFFICE) {
+            return officePresence(profile, hour, dayType);
+        }
+        if (objectType == HouseholdType.COTTAGE) {
+            return cottagePresence(profile, hour, dayType);
+        }
+
         return switch (profile.getPresenceMode()) {
             case OFTEN_HOME -> 0.72 + 0.28 * dayPresence(DayType.HOME_DAY, hour);
             case PARTLY_HOME -> 0.42 + 0.58 * dayPresence(dayType, hour);
             case CUSTOM, STANDARD_WORKDAY -> scheduledPresence(profile, hour, dayType);
         };
+    }
+
+    private HouseholdType objectType(SimulationProfile profile) {
+        return profile != null && profile.getHousehold() != null ? profile.getHousehold().getType() : null;
+    }
+
+    private double objectLoadFactor(SimulationProfile profile, double hour, DayType dayType) {
+        HouseholdType objectType = objectType(profile);
+        if (objectType == HouseholdType.OFFICE) {
+            return 0.62 + 0.5 * officePresence(profile, hour, dayType);
+        }
+        if (objectType == HouseholdType.COTTAGE) {
+            return 0.24 + 0.86 * cottagePresence(profile, hour, dayType);
+        }
+        return 1.0;
+    }
+
+    private double officePresence(SimulationProfile profile, double hour, DayType dayType) {
+        boolean activeDay = dayType == DayType.WEEKEND;
+        if (!activeDay) {
+            return 0.08;
+        }
+        if (isInRange(hour, profile.getAwayStart(), profile.getAwayEnd())) {
+            return 0.88;
+        }
+        return 0.14;
+    }
+
+    private double cottagePresence(SimulationProfile profile, double hour, DayType dayType) {
+        boolean visitDay = dayType == DayType.WEEKEND;
+        if (profile.getPresenceMode() == PresenceMode.CUSTOM) {
+            Double customPresence = customHomePresence(profile, hour);
+            return customPresence != null ? customPresence : 0.08;
+        }
+        if (!visitDay) {
+            return profile.getPresenceMode() == PresenceMode.OFTEN_HOME ? 0.22 : 0.06;
+        }
+        if (isInRange(hour, profile.getAwayStart(), profile.getAwayEnd())) {
+            return profile.getPresenceMode() == PresenceMode.OFTEN_HOME ? 0.84 : 0.62;
+        }
+        return 0.1;
     }
 
     private double scheduledPresence(SimulationProfile profile, double hour, DayType dayType) {

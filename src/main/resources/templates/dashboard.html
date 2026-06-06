@@ -57,12 +57,14 @@
                         <option value="APARTMENT">Квартира</option>
                         <option value="HOUSE">Будинок</option>
                         <option value="OFFICE">Офіс</option>
-                        <option value="GARAGE">Гараж</option>
                         <option value="COTTAGE">Дача</option>
                         <option value="OTHER">Інше</option>
                     </select>
                 </label>
-                <button class="button" type="submit">Створити групу</button>
+                <div class="form-actions">
+                    <button class="button" type="submit" data-household-submit>Створити групу</button>
+                    <button class="button button-outline" type="button" data-household-cancel hidden>Скасувати</button>
+                </div>
                 <p class="form-message" data-household-message></p>
             </form>
             <div class="entity-list" data-household-list>

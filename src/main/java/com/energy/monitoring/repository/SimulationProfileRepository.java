@@ -8,5 +8,7 @@ import java.util.Optional;
 
 @Repository
 public interface SimulationProfileRepository extends JpaRepository<SimulationProfile, Long> {
-    Optional<SimulationProfile> findByUserId(Long userId);
+    Optional<SimulationProfile> findFirstByUserIdOrderByIdDesc(Long userId);
+    Optional<SimulationProfile> findFirstByUserIdAndHouseholdIdOrderByIdDesc(Long userId, Long householdId);
+    void deleteAllByUserIdAndHouseholdId(Long userId, Long householdId);
 }

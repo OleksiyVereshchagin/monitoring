@@ -27,9 +27,13 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
@@ -240,6 +244,43 @@ public class MLService {
         return simulateAnomalyForDevices(deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId));
     }
 
+    public List<Anomaly> ensureDailyDisplayAnomalies(Long userId) {
+        List<Device> activeDevices = deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .filter(device -> Boolean.TRUE.equals(device.getActive()))
+                .toList();
+        if (activeDevices.isEmpty()) {
+            return List.of();
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime dayStart = today.atStartOfDay();
+        LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
+        long existingToday = anomalyRepository.countByDeviceInAndTimestampBetween(activeDevices, dayStart, dayEnd);
+
+        List<LocalDateTime> plannedTimes = plannedDisplayAnomalyTimes(userId, today);
+        LocalDateTime now = LocalDateTime.now();
+        int dueCount = (int) plannedTimes.stream()
+                .filter(timestamp -> !timestamp.isAfter(now))
+                .count();
+        int missing = Math.max(0, dueCount - (int) existingToday);
+        if (missing == 0) {
+            return List.of();
+        }
+
+        List<Anomaly> recentAnomalies = new ArrayList<>(anomalyRepository.findAllByDeviceInOrderByTimestampDesc(activeDevices));
+        List<Anomaly> created = new ArrayList<>();
+        for (int i = 0; i < missing; i++) {
+            LocalDateTime timestamp = plannedTimes.get(Math.max(0, dueCount - missing + i));
+            Device device = chooseDisplayAnomalyDevice(activeDevices, recentAnomalies);
+            Anomaly anomaly = createSimulatedAnomaly(device, chooseSimulatedAnomalyType(device, recentAnomalies), timestamp);
+            created.add(anomaly);
+            recentAnomalies.add(0, anomaly);
+        }
+
+        return created;
+    }
+
     public Anomaly simulateAnomalyForHousehold(Long userId, Long householdId) {
         return simulateAnomalyForDevices(deviceRepository.findAllByUserIdAndHouseholdIdOrderByCreatedAtDesc(userId, householdId));
     }
@@ -270,6 +311,21 @@ public class MLService {
         return createSimulatedAnomaly(device, chooseSimulatedAnomalyType(device, recentAnomalies));
     }
 
+    private Device chooseDisplayAnomalyDevice(List<Device> activeDevices, List<Anomaly> recentAnomalies) {
+        Long latestDeviceId = recentAnomalies.isEmpty()
+                ? null
+                : recentAnomalies.get(0).getDevice().getId();
+
+        List<Device> candidates = activeDevices;
+        if (activeDevices.size() > 1 && latestDeviceId != null) {
+            candidates = activeDevices.stream()
+                    .filter(device -> !device.getId().equals(latestDeviceId))
+                    .toList();
+        }
+
+        return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+    }
+
     public Anomaly simulateAnomaly(Long deviceId, Long userId) {
         Device device = deviceRepository.findByIdAndUserId(deviceId, userId)
                 .orElseThrow(() -> new RuntimeException("Пристрій не знайдено"));
@@ -278,8 +334,12 @@ public class MLService {
     }
 
     private Anomaly createSimulatedAnomaly(Device device, AnomalyType type) {
+        return createSimulatedAnomaly(device, type, LocalDateTime.now());
+    }
+
+    private Anomaly createSimulatedAnomaly(Device device, AnomalyType type, LocalDateTime timestamp) {
         BigDecimal expected = estimateExpectedValue(device);
-        BigDecimal actual = simulateActualValue(expected, type);
+        BigDecimal actual = simulateActualValue(device, expected, type);
         BigDecimal safeExpected = expected.compareTo(BigDecimal.ZERO) > 0 ? expected : BigDecimal.ONE;
         BigDecimal deviationPercent = actual.subtract(expected)
                 .abs()
@@ -289,7 +349,7 @@ public class MLService {
 
         Anomaly anomaly = Anomaly.builder()
                 .device(device)
-                .timestamp(LocalDateTime.now())
+                .timestamp(timestamp)
                 .actualValue(actual)
                 .expectedValue(expected)
                 .deviationPercent(deviationPercent)
@@ -307,6 +367,24 @@ public class MLService {
                 .findFirst()
                 .map(anomaly -> anomaly.getType() == AnomalyType.SPIKE ? AnomalyType.DROP : AnomalyType.SPIKE)
                 .orElseGet(() -> ThreadLocalRandom.current().nextBoolean() ? AnomalyType.SPIKE : AnomalyType.DROP);
+    }
+
+    private List<LocalDateTime> plannedDisplayAnomalyTimes(Long userId, LocalDate date) {
+        Random random = new Random(userId * 31 + date.toEpochDay() * 17);
+        int targetCount = 3 + random.nextInt(5);
+        List<LocalDateTime> times = new ArrayList<>();
+
+        for (int i = 0; i < targetCount; i++) {
+            int secondOfDay = 5 * 60 + random.nextInt((23 * 60 * 60) - (10 * 60));
+            if (secondOfDay % 60 == 0) {
+                secondOfDay += 17;
+            }
+            times.add(LocalDateTime.of(date, LocalTime.ofSecondOfDay(secondOfDay)));
+        }
+
+        return times.stream()
+                .sorted(Comparator.naturalOrder())
+                .toList();
     }
 
     // ── Допоміжні методи ────────────────────────────────────────────────────
@@ -361,11 +439,27 @@ public class MLService {
         return nominal.max(BigDecimal.valueOf(0.01)).setScale(4, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal simulateActualValue(BigDecimal expected, AnomalyType type) {
+    private BigDecimal simulateActualValue(Device device, BigDecimal expected, AnomalyType type) {
+        boolean heavy = isHeavyDevice(device);
+        double maxDeviation = heavy ? 60.0 : type == AnomalyType.SPIKE ? 160.0 : 85.0;
+        double minDeviation = heavy ? 12.0 : 18.0;
+        double deviation = ThreadLocalRandom.current().nextDouble(minDeviation, maxDeviation);
         double factor = type == AnomalyType.SPIKE
-                ? ThreadLocalRandom.current().nextDouble(1.8, 3.2)
-                : ThreadLocalRandom.current().nextDouble(0.1, 0.35);
+                ? 1.0 + deviation / 100.0
+                : Math.max(0.08, 1.0 - deviation / 100.0);
         return expected.multiply(BigDecimal.valueOf(factor)).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private boolean isHeavyDevice(Device device) {
+        if (device.getNominalPower() != null && device.getNominalPower().doubleValue() >= 1.2) {
+            return true;
+        }
+
+        return switch (device.getType()) {
+            case AC, HEATER, BOILER, WASHING_MACHINE, DRYER, DISHWASHER, OVEN, STOVE,
+                 WATER_PUMP, EV_CHARGER, BATTERY_STORAGE -> true;
+            default -> false;
+        };
     }
 
     private List<Double> fallbackForecast(Long userId) {

@@ -67,6 +67,10 @@ public class DataGeneratorService {
         userIds.forEach(userId -> {
             try {
                 mlService.detectAnomalies(userId);
+                int displayAnomalies = mlService.ensureDailyDisplayAnomalies(userId).size();
+                if (displayAnomalies > 0) {
+                    log.info("DataGenerator: created {} display anomalies for userId={}", displayAnomalies, userId);
+                }
             } catch (Exception e) {
                 log.warn("DataGenerator: anomaly processing for userId={} failed: {}", userId, e.getMessage());
             }

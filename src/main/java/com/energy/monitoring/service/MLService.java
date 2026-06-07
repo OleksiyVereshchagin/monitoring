@@ -2,11 +2,16 @@ package com.energy.monitoring.service;
 
 import com.energy.monitoring.entity.Anomaly;
 import com.energy.monitoring.entity.AnomalyType;
+import com.energy.monitoring.entity.ActivityLevel;
 import com.energy.monitoring.entity.Device;
+import com.energy.monitoring.entity.HouseholdType;
+import com.energy.monitoring.entity.PresenceMode;
 import com.energy.monitoring.entity.Reading;
+import com.energy.monitoring.entity.SimulationProfile;
 import com.energy.monitoring.repository.AnomalyRepository;
 import com.energy.monitoring.repository.DeviceRepository;
 import com.energy.monitoring.repository.ReadingRepository;
+import com.energy.monitoring.repository.SimulationProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
@@ -27,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -47,6 +53,7 @@ public class MLService {
     private final DeviceRepository deviceRepository;
     private final ReadingRepository readingRepository;
     private final AnomalyRepository anomalyRepository;
+    private final SimulationProfileRepository simulationProfileRepository;
 
     private MultiLayerNetwork model;
     private double minValue = 0.0;
@@ -153,6 +160,20 @@ public class MLService {
                     userId, householdId, e.getMessage());
             return fallbackForecast(userId, householdId);
         }
+    }
+
+    public ForecastResult forecast(Long userId, Long householdId, int days) {
+        int forecastDays = normalizeForecastDays(days);
+        if (forecastDays == 1) {
+            return new ForecastResult(1, "LSTM_24H", forecast(userId, householdId));
+        }
+
+        List<Double> oneDayForecast = forecast(userId, householdId);
+        return new ForecastResult(
+                forecastDays,
+                "HISTORICAL_PATTERN",
+                historicalPatternForecast(userId, householdId, forecastDays, totalKwh(oneDayForecast))
+        );
     }
 
     // ── Розпізнання аномалій ────────────────────────────────────────────────────
@@ -502,11 +523,268 @@ public class MLService {
         return repeatedForecast(0.0);
     }
 
+    private List<Double> historicalPatternForecast(Long userId, Long householdId, int days, double oneDayForecastKwh) {
+        try {
+            List<Double> series = loadAggregatedSeries(userId, householdId);
+            if (series.isEmpty()) {
+                return repeatedForecast(0.0, days * FORECAST_SIZE);
+            }
+
+            SimulationProfile profile = resolveForecastProfile(userId, householdId);
+            double realisticDailyCap = realisticDailyKwhCap(userId, householdId, profile);
+            double baseDailyKwh = Math.min(baselineDailyKwh(series, oneDayForecastKwh), realisticDailyCap);
+            LocalDate startDate = LocalDate.now().plusDays(1);
+            List<Double> result = new ArrayList<>();
+            for (int day = 0; day < days; day++) {
+                LocalDate date = startDate.plusDays(day);
+                List<Double> dayShape = new ArrayList<>();
+                for (int slot = 0; slot < FORECAST_SIZE; slot++) {
+                    dayShape.add(safeForecastValue(historicalPatternValue(series, date, slot)));
+                }
+
+                double targetDailyKwh = targetDailyKwh(baseDailyKwh, profile, date, userId, day);
+                result.addAll(scaleDayToKwh(dayShape, targetDailyKwh));
+            }
+
+            return clampMultiDayForecast(result, series, days, oneDayForecastKwh, realisticDailyCap);
+        } catch (RuntimeException e) {
+            return repeatedForecast(0.0, days * FORECAST_SIZE);
+        }
+    }
+
+    private double historicalPatternValue(List<Double> series, LocalDate targetDate, int slot) {
+        double weightedSum = 0.0;
+        double totalWeight = 0.0;
+
+        for (int day = 1; day <= 14; day++) {
+            int index = series.size() - (day * FORECAST_SIZE) + slot;
+            if (index >= 0 && index < series.size()) {
+                LocalDate historicalDate = targetDate.minusDays(day);
+                double weight = historicalDate.getDayOfWeek() == targetDate.getDayOfWeek() ? 1.8 : 1.0;
+                weightedSum += series.get(index) * weight;
+                totalWeight += weight;
+            }
+        }
+
+        if (totalWeight <= 0) {
+            return series.stream()
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
+        }
+
+        return weightedSum / totalWeight;
+    }
+
+    private SimulationProfile resolveForecastProfile(Long userId, Long householdId) {
+        if (householdId == null) {
+            return null;
+        }
+
+        return simulationProfileRepository
+                .findFirstByUserIdAndHouseholdIdOrderByIdDesc(userId, householdId)
+                .orElse(null);
+    }
+
+    private double baselineDailyKwh(List<Double> history, double oneDayForecastKwh) {
+        double historicalDailyKwh = averageDailyKwh(history);
+        if (historicalDailyKwh <= 0) {
+            return Math.max(0.0, oneDayForecastKwh);
+        }
+        if (oneDayForecastKwh <= 0) {
+            return historicalDailyKwh;
+        }
+        return (oneDayForecastKwh * 0.65) + (historicalDailyKwh * 0.35);
+    }
+
+    private double realisticDailyKwhCap(Long userId, Long householdId, SimulationProfile profile) {
+        long activeDevices = householdId != null
+                ? deviceRepository.findAllByUserIdAndHouseholdIdOrderByCreatedAtDesc(userId, householdId).stream()
+                        .filter(device -> Boolean.TRUE.equals(device.getActive()))
+                        .count()
+                : deviceRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
+                        .filter(device -> Boolean.TRUE.equals(device.getActive()))
+                        .count();
+
+        HouseholdType type = profile != null && profile.getHousehold() != null
+                ? profile.getHousehold().getType()
+                : HouseholdType.APARTMENT;
+
+        double base = switch (type) {
+            case HOUSE -> 10.5;
+            case OFFICE -> 11.5;
+            case COTTAGE -> 5.5;
+            case APARTMENT -> 7.8;
+            default -> 7.0;
+        };
+
+        double deviceFactor = Math.min(2.8, Math.max(0.0, activeDevices - 4) * 0.35);
+        double profileFactor = 1.0;
+        if (profile != null) {
+            int occupants = profile.getOccupants() != null ? profile.getOccupants() : 2;
+            profileFactor += Math.min(0.18, Math.max(0, occupants - 2) * 0.04);
+            if (profile.getAreaM2() != null) {
+                profileFactor += Math.min(0.14, Math.max(0.0, profile.getAreaM2().doubleValue() - 55.0) * 0.002);
+            }
+            profileFactor *= activityDayFactor(profile);
+        }
+
+        return (base + deviceFactor) * profileFactor;
+    }
+
+    private double targetDailyKwh(double baseDailyKwh, SimulationProfile profile, LocalDate date, Long userId, int dayOffset) {
+        double factor = objectDayFactor(profile, date)
+                * activityDayFactor(profile)
+                * presenceDayFactor(profile, date)
+                * deterministicNoise(userId, date, dayOffset);
+        return Math.max(0.0, baseDailyKwh * factor);
+    }
+
+    private double objectDayFactor(SimulationProfile profile, LocalDate date) {
+        HouseholdType type = profile != null && profile.getHousehold() != null
+                ? profile.getHousehold().getType()
+                : HouseholdType.APARTMENT;
+        boolean activeDay = isProfileActiveDay(profile, date.getDayOfWeek());
+
+        return switch (type) {
+            case OFFICE -> activeDay ? 1.12 : 0.32;
+            case COTTAGE -> activeDay ? 1.18 : 0.22;
+            case HOUSE -> activeDay ? 1.10 : 0.96;
+            case APARTMENT -> activeDay ? 1.08 : 0.94;
+            default -> activeDay ? 1.05 : 0.9;
+        };
+    }
+
+    private double activityDayFactor(SimulationProfile profile) {
+        if (profile == null || profile.getActivityLevel() == null) {
+            return 1.0;
+        }
+
+        return switch (profile.getActivityLevel()) {
+            case ECONOMY -> 0.88;
+            case NORMAL -> 1.0;
+            case ACTIVE -> 1.12;
+        };
+    }
+
+    private double presenceDayFactor(SimulationProfile profile, LocalDate date) {
+        if (profile == null || profile.getPresenceMode() == null) {
+            return 1.0;
+        }
+
+        boolean activeDay = isProfileActiveDay(profile, date.getDayOfWeek());
+        HouseholdType type = profile.getHousehold() != null ? profile.getHousehold().getType() : HouseholdType.APARTMENT;
+
+        if (type == HouseholdType.OFFICE) {
+            return activeDay ? 1.05 : 0.72;
+        }
+        if (type == HouseholdType.COTTAGE) {
+            return switch (profile.getPresenceMode()) {
+                case OFTEN_HOME -> activeDay ? 1.12 : 0.42;
+                case PARTLY_HOME, CUSTOM -> activeDay ? 1.0 : 0.26;
+                case STANDARD_WORKDAY -> activeDay ? 0.9 : 0.18;
+            };
+        }
+
+        return switch (profile.getPresenceMode()) {
+            case OFTEN_HOME -> activeDay ? 1.08 : 1.02;
+            case PARTLY_HOME -> activeDay ? 1.04 : 0.96;
+            case CUSTOM -> activeDay ? 1.03 : 0.94;
+            case STANDARD_WORKDAY -> activeDay ? 1.08 : 0.92;
+        };
+    }
+
+    private boolean isProfileActiveDay(SimulationProfile profile, DayOfWeek day) {
+        String activeDays = profile != null && profile.getWeekendDays() != null
+                ? profile.getWeekendDays()
+                : "SATURDAY,SUNDAY";
+        return !"NONE".equalsIgnoreCase(activeDays) && activeDays.contains(day.name());
+    }
+
+    private double deterministicNoise(Long userId, LocalDate date, int dayOffset) {
+        Random random = new Random((userId != null ? userId : 0L) * 97 + date.toEpochDay() * 37 + dayOffset * 11L);
+        return 0.94 + random.nextDouble() * 0.12;
+    }
+
+    private List<Double> scaleDayToKwh(List<Double> values, double targetKwh) {
+        double currentKwh = totalKwh(values);
+        if (currentKwh <= 0 || targetKwh <= 0) {
+            return values;
+        }
+
+        double scale = targetKwh / currentKwh;
+        return values.stream()
+                .map(value -> safeForecastValue(value * scale))
+                .toList();
+    }
+
+    private List<Double> clampMultiDayForecast(
+            List<Double> forecast,
+            List<Double> history,
+            int days,
+            double oneDayForecastKwh,
+            double realisticDailyCap
+    ) {
+        double historicalDailyKwh = averageDailyKwh(history);
+        double forecastTotalKwh = totalKwh(forecast);
+        if (historicalDailyKwh <= 0 || forecastTotalKwh <= 0) {
+            return forecast;
+        }
+
+        double dailyLimit = oneDayForecastKwh > 0
+                ? Math.min(historicalDailyKwh * 1.08, oneDayForecastKwh * 1.08)
+                : historicalDailyKwh;
+        dailyLimit = Math.min(dailyLimit, realisticDailyCap * 1.12);
+        double maxTotal = dailyLimit * days;
+        if (forecastTotalKwh <= maxTotal) {
+            return forecast;
+        }
+
+        double scale = maxTotal / forecastTotalKwh;
+        return forecast.stream()
+                .map(value -> safeForecastValue(value * scale))
+                .toList();
+    }
+
+    private double averageDailyKwh(List<Double> values) {
+        int days = Math.max(1, Math.min(14, values.size() / FORECAST_SIZE));
+        int points = Math.min(values.size(), days * FORECAST_SIZE);
+        List<Double> recent = values.subList(values.size() - points, values.size());
+        return totalKwh(recent) / days;
+    }
+
+    private double totalKwh(List<Double> values) {
+        return values.stream()
+                .mapToDouble(Double::doubleValue)
+                .sum() * (10.0 / 60.0);
+    }
+
+    private List<Double> repeatedForecast(double value, int points) {
+        List<Double> result = new ArrayList<>();
+        for (int i = 0; i < points; i++) {
+            result.add(safeForecastValue(value));
+        }
+        return result;
+    }
+
+    private int normalizeForecastDays(int days) {
+        if (days <= 1) {
+            return 1;
+        }
+        if (days <= 5) {
+            return 5;
+        }
+        return 7;
+    }
+
     private double safeForecastValue(double value) {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             return 0.0;
         }
         return Math.max(0.0, value);
+    }
+
+    public record ForecastResult(int days, String source, List<Double> values) {
     }
 
     private MultiLayerNetwork buildModel() {

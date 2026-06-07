@@ -115,13 +115,27 @@ const loadDashboardMetrics = async () => {
     }
 
     try {
-        const forecastResponse = await apiFetch(withDashboardHouseholdParam("/api/ml/forecast"));
+        const forecastDays = getForecastDays();
+        const forecastResponse = await apiFetch(withDashboardHouseholdParam(`/api/ml/forecast?days=${encodeURIComponent(forecastDays)}`));
         if (forecastResponse.ok) {
-            const forecast = await forecastResponse.json();
-            const total = (forecast.reduce((a, b) => a + b, 0) * (10 / 60)).toFixed(2);
+            const forecastPayload = await forecastResponse.json();
+            const values = Array.isArray(forecastPayload) ? forecastPayload : (forecastPayload.values || []);
+            const total = forecastPayload.totalKwh != null
+                ? Number(forecastPayload.totalKwh).toFixed(2)
+                : (values.reduce((a, b) => a + b, 0) * (10 / 60)).toFixed(2);
+            const days = forecastPayload.days || forecastDays;
+            const source = forecastPayload.source || "LSTM_24H";
+            const forecastLabel = document.querySelector("[data-forecast-label]");
             const forecastEl = document.querySelector("[data-forecast-power]");
+            const forecastSource = document.querySelector("[data-forecast-source]");
+            if (forecastLabel) {
+                forecastLabel.textContent = getForecastPeriodLabel(days);
+            }
             if (forecastEl) {
                 forecastEl.textContent = `${total} кВт·год`;
+            }
+            if (forecastSource) {
+                forecastSource.textContent = getForecastSourceLabel(source);
             }
         }
     } catch (error) {
@@ -374,6 +388,26 @@ const updateDashboardScopeLabel = () => {
 
 const getChartDays = () => (
     document.querySelector("[data-chart-days].active")?.dataset.chartDays || "1"
+);
+
+const getForecastDays = () => (
+    document.querySelector("[data-forecast-days].active")?.dataset.forecastDays || "1"
+);
+
+const getForecastPeriodLabel = (days) => {
+    if (String(days) === "5") {
+        return "Прогноз на 5 діб";
+    }
+    if (String(days) === "7") {
+        return "Прогноз на 7 діб";
+    }
+    return "Прогноз на 24 год";
+};
+
+const getForecastSourceLabel = (source) => (
+    source === "LSTM_24H"
+        ? "Нейромережевий прогноз LSTM"
+        : "Орієнтовний прогноз за історичним патерном"
 );
 
 const getChartPeriodLabel = (days) => {
@@ -1311,6 +1345,27 @@ const bindChartControls = () => {
     });
 };
 
+const bindForecastControls = () => {
+    document.querySelectorAll("[data-forecast-days]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            if (button.classList.contains("active")) {
+                return;
+            }
+
+            document.querySelectorAll("[data-forecast-days]").forEach((item) => {
+                item.classList.toggle("active", item === button);
+            });
+
+            const forecastEl = document.querySelector("[data-forecast-power]");
+            if (forecastEl) {
+                forecastEl.textContent = "-- кВт·год";
+            }
+
+            await loadDashboardMetrics().catch(error => console.error("Forecast range error:", error));
+        });
+    });
+};
+
 const loadDeviceContribution = async () => {
     const list = document.querySelector("[data-device-contribution-list]");
     if (!list) {
@@ -1510,6 +1565,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     bindSimulationProfile();
     bindMLControls();
     bindChartControls();
+    bindForecastControls();
     await initConsumptionChart();
 
     try {

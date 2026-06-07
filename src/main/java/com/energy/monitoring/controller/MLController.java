@@ -40,13 +40,26 @@ public class MLController {
     }
 
     @GetMapping("/forecast")
-    public ResponseEntity<List<Double>> forecast(
+    public ResponseEntity<Map<String, Object>> forecast(
             @RequestParam(required = false) Long householdId,
+            @RequestParam(defaultValue = "1") int days,
             Authentication authentication) {
         Long userId = getUserId(authentication);
-        dataGeneratorService.ensureRecentDataForUser(userId);
-        List<Double> result = mlService.forecast(userId, householdId);
-        return ResponseEntity.ok(result);
+        int forecastDays = normalizeChartDays(days);
+        if (householdId != null) {
+            dataGeneratorService.ensureDataForUserAndHousehold(userId, householdId, forecastDays > 1 ? 14 : 1);
+        } else {
+            dataGeneratorService.ensureDataForUser(userId, forecastDays > 1 ? 14 : 1);
+        }
+
+        MLService.ForecastResult result = mlService.forecast(userId, householdId, forecastDays);
+        return ResponseEntity.ok(Map.of(
+                "days", result.days(),
+                "points", result.values().size(),
+                "totalKwh", round(totalKwh(result.values())),
+                "source", result.source(),
+                "values", result.values()
+        ));
     }
 
     @GetMapping("/dataset-info")
@@ -234,6 +247,12 @@ public class MLController {
 
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    private double totalKwh(List<Double> values) {
+        return values.stream()
+                .mapToDouble(Double::doubleValue)
+                .sum() * (10.0 / 60.0);
     }
 
     private int normalizeChartDays(int days) {

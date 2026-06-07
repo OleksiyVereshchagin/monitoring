@@ -429,6 +429,12 @@ a:hover {
     font-size: 28px;
 }
 
+.metric-note {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
 .panel {
     padding: 24px;
 }
@@ -458,7 +464,8 @@ a:hover {
     gap: 12px;
 }
 
-.chart-range-control {
+.chart-range-control,
+.forecast-range-control {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -468,7 +475,8 @@ a:hover {
     padding: 4px;
 }
 
-.chart-range-control button {
+.chart-range-control button,
+.forecast-range-control button {
     min-height: 32px;
     border: 0;
     border-radius: 6px;
@@ -481,9 +489,19 @@ a:hover {
     padding: 6px 10px;
 }
 
-.chart-range-control button.active {
+.chart-range-control button.active,
+.forecast-range-control button.active {
     background: var(--soft);
     color: var(--accent-dark);
+}
+
+.forecast-range-control {
+    width: fit-content;
+}
+
+.forecast-range-control button {
+    font-size: 12px;
+    padding-inline: 8px;
 }
 
 .compact-form {

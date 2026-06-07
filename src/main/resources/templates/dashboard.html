@@ -35,8 +35,14 @@
             <strong data-current-power>-- кВт</strong>
         </article>
         <article class="metric-card">
-            <span>Прогноз на 24 год</span>
+            <span data-forecast-label>Прогноз на 24 год</span>
             <strong data-forecast-power>-- кВт·год</strong>
+            <div class="forecast-range-control" aria-label="Період прогнозу">
+                <button type="button" data-forecast-days="1" class="active">1 доба</button>
+                <button type="button" data-forecast-days="5">5 діб</button>
+                <button type="button" data-forecast-days="7">7 діб</button>
+            </div>
+            <small class="metric-note" data-forecast-source>Нейромережевий прогноз LSTM</small>
         </article>
         <article class="metric-card">
             <span>Активні пристрої</span>

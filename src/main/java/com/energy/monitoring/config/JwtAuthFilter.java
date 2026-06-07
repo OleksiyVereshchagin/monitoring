@@ -20,6 +20,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Arrays;
 
+/**
+ * Перевіряє JWT-токен користувача і підставляє авторизацію в Spring Security context.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -33,10 +36,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
-
-//        log.info("JwtAuthFilter: uri={}, token={}",
-//                request.getRequestURI(),
-//                extractToken(request) != null ? "present" : "null");
 
         final String token = extractToken(request);
 

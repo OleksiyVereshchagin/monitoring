@@ -20,6 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 
+/**
+ * Сервіс читання та збереження профілю симуляції для конкретної групи пристроїв.
+ * Відповідає за значення за замовчуванням для житла, офісу, дачі та інших об'єктів.
+ */
 @Service
 @RequiredArgsConstructor
 public class SimulationProfileService {

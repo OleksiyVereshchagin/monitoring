@@ -21,6 +21,9 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Сутність зафіксованого відхилення між очікуваним і фактичним споживанням пристрою.
+ */
 @Entity
 @Table(name = "anomalies")
 @Getter

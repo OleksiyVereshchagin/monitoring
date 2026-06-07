@@ -30,6 +30,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Сервіс керування групами пристроїв, пристроями та ручними показниками споживання.
+ */
 @Service
 @RequiredArgsConstructor
 public class TelemetryService {

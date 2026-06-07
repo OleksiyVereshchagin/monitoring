@@ -18,6 +18,9 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Сутність одного показника споживання пристрою за конкретний момент часу.
+ */
 @Entity
 @Table(name = "readings")
 @Getter

@@ -23,6 +23,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+/**
+ * Сутність налаштувань симуляції для групи пристроїв: регіон, присутність, активні дні та часові інтервали.
+ */
 @Entity
 @Table(name = "simulation_profiles")
 @Getter

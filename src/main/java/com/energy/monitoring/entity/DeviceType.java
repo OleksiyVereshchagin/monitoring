@@ -1,5 +1,8 @@
 package com.energy.monitoring.entity;
 
+/**
+ * Перелік підтримуваних типів пристроїв для симуляції, статистики та внеску у споживання.
+ */
 public enum DeviceType {
     FRIDGE,
     REFRIGERATOR,

@@ -30,6 +30,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * REST-контролер для груп пристроїв, самих пристроїв і ручних readings.
+ */
 @RestController
 @RequiredArgsConstructor
 public class TelemetryController {

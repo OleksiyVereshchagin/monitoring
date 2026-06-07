@@ -25,6 +25,9 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Сутність пристрою, який належить до групи об'єктів і має власний тип, потужність та поведінку.
+ */
 @Entity
 @Table(name = "devices")
 @Getter

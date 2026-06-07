@@ -14,6 +14,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+/**
+ * Генерує реалістичне споживання для пристрою в конкретний момент часу.
+ * Враховує тип пристрою, його поведінку, профіль об'єкта, активні дні та часові інтервали.
+ * Є основною точкою формування патернів для графіка, статистики та навчальних readings.
+ */
 @Component
 public class PatternGenerator {
 

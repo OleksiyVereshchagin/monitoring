@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Design Options</title>
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --panel: #ffffff;
+            --text: #1c2530;
+            --muted: #667085;
+            --line: #d9e2ec;
+            --accent: #0f766e;
+            --accent-dark: #115e59;
+            --soft: #eef6f4;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        main {
+            width: min(100%, 1180px);
+            margin: 0 auto;
+            padding: 36px 24px 64px;
+        }
+
+        .intro {
+            margin-bottom: 28px;
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        .intro h1 {
+            margin-bottom: 8px;
+            font-size: 34px;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .option {
+            margin-top: 32px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--panel);
+            overflow: hidden;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            border-bottom: 1px solid var(--line);
+            background: #fbfcfd;
+            padding: 16px 20px;
+        }
+
+        .option-label h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .option-body {
+            padding: 28px;
+        }
+
+        .page-title {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 22px;
+        }
+
+        .page-title h3 {
+            margin-bottom: 6px;
+            font-size: 34px;
+        }
+
+        .page-title p {
+            margin: 0;
+        }
+
+        .select-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        select {
+            min-height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #ffffff;
+            color: var(--text);
+            font: inherit;
+            padding: 8px 34px 8px 10px;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .metric {
+            display: grid;
+            gap: 8px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 16px;
+        }
+
+        .metric span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .metric strong {
+            font-size: 24px;
+        }
+
+        .metric small {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 20px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .panel-header h3 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .segmented {
+            display: inline-flex;
+            gap: 4px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 4px;
+        }
+
+        .segmented button {
+            min-height: 32px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--muted);
+            cursor: default;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 6px 10px;
+        }
+
+        .segmented .active {
+            background: var(--soft);
+            color: var(--accent-dark);
+        }
+
+        .chart {
+            height: 250px;
+            border-radius: 8px;
+            background:
+                linear-gradient(180deg, rgba(15, 118, 110, 0.08), rgba(15, 118, 110, 0.02)),
+                repeating-linear-gradient(to right, transparent 0, transparent 9.5%, rgba(28, 37, 48, 0.08) 9.6%, transparent 9.7%),
+                repeating-linear-gradient(to bottom, transparent 0, transparent 24%, rgba(28, 37, 48, 0.08) 24.2%, transparent 24.4%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart::before {
+            content: "";
+            position: absolute;
+            inset: 42px 28px 46px;
+            border-bottom: 5px solid var(--accent);
+            border-left: 5px solid transparent;
+            border-radius: 48% 52% 36% 64%;
+            transform: skewX(-10deg);
+        }
+
+        .grid-two {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .compact-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .list-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 10px;
+        }
+
+        .list-row:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .pill {
+            align-self: start;
+            border-radius: 999px;
+            background: var(--soft);
+            color: var(--accent-dark);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 5px 9px;
+            white-space: nowrap;
+        }
+
+        .variant-b .top-strip {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+
+        .variant-b .context-card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 14px;
+        }
+
+        .variant-b .metrics {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .variant-c .hero-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+
+        .variant-c .summary-panel {
+            display: grid;
+            gap: 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 18px;
+        }
+
+        .variant-c .metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin: 0;
+        }
+
+        @media (max-width: 900px) {
+            .page-title,
+            .variant-b .top-strip,
+            .variant-c .hero-row {
+                align-items: flex-start;
+                grid-template-columns: 1fr;
+                flex-direction: column;
+            }
+
+            .metrics,
+            .variant-b .metrics,
+            .variant-c .metrics,
+            .grid-two {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <section class="intro">
+        <h1>Варіанти сторінки “Огляд”</h1>
+        <p class="muted">Три мінімалістичні напрями без зміни логіки: тільки композиція, тексти й візуальна ієрархія.</p>
+    </section>
+
+    <section class="option">
+        <div class="option-label">
+            <h2>Варіант 1: Чистий Dashboard</h2>
+            <span class="muted">Найближчий до поточного дизайну</span>
+        </div>
+        <div class="option-body">
+            <div class="page-title">
+                <div>
+                    <h3>Огляд</h3>
+                    <p class="muted">Ключові показники споживання, прогноз і останні відхилення.</p>
+                </div>
+                <label class="select-row">
+                    Об’єкт
+                    <select>
+                        <option>Усі групи</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="metrics">
+                <article class="metric"><span>Поточне споживання</span><strong>1,85 кВт</strong></article>
+                <article class="metric"><span>Прогноз на 24 год</span><strong>9,40 кВт·год</strong><small>LSTM-прогноз</small></article>
+                <article class="metric"><span>Активні пристрої</span><strong>8</strong></article>
+                <article class="metric"><span>Групи</span><strong>3</strong></article>
+            </div>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h3>Графік споживання</h3>
+                    <div class="segmented">
+                        <button class="active">24 години</button>
+                        <button>5 днів</button>
+                        <button>7 днів</button>
+                    </div>
+                </div>
+                <div class="chart"></div>
+            </section>
+        </div>
+    </section>
+
+    <section class="option variant-b">
+        <div class="option-label">
+            <h2>Варіант 2: Контекстний Верх</h2>
+            <span class="muted">Об’єкт помітніший, але без важкої панелі</span>
+        </div>
+        <div class="option-body">
+            <div class="top-strip">
+                <div>
+                    <h3>Огляд</h3>
+                    <p class="muted">Моніторинг споживання, прогноз навантаження та контроль відхилень.</p>
+                </div>
+                <div class="context-card">
+                    <label class="select-row">
+                        Об’єкт
+                        <select>
+                            <option>Квартира</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <div class="metrics">
+                <article class="metric"><span>Зараз</span><strong>1,85 кВт</strong></article>
+                <article class="metric"><span>Прогноз</span><strong>9,40 кВт·год</strong><small>1 доба · LSTM</small></article>
+                <article class="metric"><span>Пристрої</span><strong>8 активних</strong></article>
+                <article class="metric"><span>Аномалії</span><strong>2</strong><small>за сьогодні</small></article>
+            </div>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h3>Динаміка споживання</h3>
+                    <div class="segmented">
+                        <button class="active">24 год</button>
+                        <button>5 днів</button>
+                        <button>7 днів</button>
+                    </div>
+                </div>
+                <div class="chart"></div>
+            </section>
+        </div>
+    </section>
+
+    <section class="option variant-c">
+        <div class="option-label">
+            <h2>Варіант 3: Аналітичний Огляд</h2>
+            <span class="muted">Більше схожий на фінальний продукт для захисту</span>
+        </div>
+        <div class="option-body">
+            <div class="page-title">
+                <div>
+                    <h3>Огляд</h3>
+                    <p class="muted">Стан енергоспоживання об’єкта, прогноз і ключові події.</p>
+                </div>
+                <label class="select-row">
+                    Об’єкт
+                    <select>
+                        <option>Офіс</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="hero-row">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h3>Графік споживання</h3>
+                        <div class="segmented">
+                            <button class="active">24 год</button>
+                            <button>5 днів</button>
+                            <button>7 днів</button>
+                        </div>
+                    </div>
+                    <div class="chart"></div>
+                </section>
+
+                <aside class="summary-panel">
+                    <div class="metrics">
+                        <article class="metric"><span>Зараз</span><strong>1,85 кВт</strong></article>
+                        <article class="metric"><span>Прогноз</span><strong>9,40</strong><small>кВт·год</small></article>
+                    </div>
+                    <div class="compact-list">
+                        <div class="list-row">
+                            <div>
+                                <strong>Нейромережа</strong>
+                                <p class="muted">Прогноз доступний</p>
+                            </div>
+                            <span class="pill">LSTM</span>
+                        </div>
+                        <div class="list-row">
+                            <div>
+                                <strong>Останні аномалії</strong>
+                                <p class="muted">2 записи за сьогодні</p>
+                            </div>
+                            <span class="pill">Журнал</span>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </section>
+</main>
+</body>
+</html>

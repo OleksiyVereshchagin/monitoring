@@ -24,6 +24,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Сутність групи пристроїв користувача: квартира, будинок, офіс, дача або інший об'єкт.
+ */
 @Entity
 @Table(name = "households")
 @Getter

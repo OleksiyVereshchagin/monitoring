@@ -11,6 +11,9 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Сутність користувача системи, яка також використовується Spring Security для авторизації.
+ */
 @Entity
 @Table(name = "users")
 @Getter

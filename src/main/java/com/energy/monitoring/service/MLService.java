@@ -42,6 +42,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * Центральний сервіс ML-логіки системи.
+ * Навчає LSTM-модель, формує прогноз споживання, рахує dashboard-агрегації та створює аномалії.
+ * Для довших прогнозів використовує історичні readings і тижневий патерн, щоб не ламати стабільний demo-flow.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

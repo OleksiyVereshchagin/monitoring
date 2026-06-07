@@ -14,6 +14,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+/**
+ * Сервіс реєстрації та входу користувача з перевіркою пароля і генерацією JWT.
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthService {

@@ -13,42 +13,42 @@
 <header th:replace="~{fragments/topbar :: topbar}"></header>
 
 <main class="page" data-core-manager>
-    <section class="page-heading">
-        <p class="eyebrow">Огляд системи</p>
-        <h1>Огляд</h1>
-        <p>Ключові показники домашнього споживання, прогноз на добу та останні відхилення.</p>
-    </section>
-
-    <section class="dashboard-scope-panel">
-        <label class="dashboard-scope-control">
-            Об’єкт
-            <select data-dashboard-household-filter>
-                <option value="">Усі групи</option>
-            </select>
-        </label>
-        <p class="muted" data-dashboard-scope-label>Показано сумарні дані всіх груп.</p>
+    <section class="page-heading dashboard-heading">
+        <div>
+            <h1>Огляд</h1>
+            <p>Моніторинг споживання, прогноз навантаження та контроль відхилень.</p>
+        </div>
+        <div class="dashboard-context-card">
+            <label class="dashboard-scope-control">
+                Об’єкт
+                <select data-dashboard-household-filter>
+                    <option value="">Усі групи</option>
+                </select>
+            </label>
+        </div>
     </section>
 
     <section class="stats-grid" aria-label="Основні показники" data-metrics>
-        <article class="metric-card">
+        <article class="metric-card metric-card-compact">
             <span>Поточне споживання</span>
             <strong data-current-power>-- кВт</strong>
         </article>
-        <article class="metric-card">
-            <span data-forecast-label>Прогноз на 24 год</span>
-            <strong data-forecast-power>-- кВт·год</strong>
+        <article class="metric-card metric-card-forecast">
+            <div class="metric-main">
+                <span data-forecast-label>Прогноз</span>
+                <strong data-forecast-power>-- кВт·год</strong>
+            </div>
             <div class="forecast-range-control" aria-label="Період прогнозу">
                 <button type="button" data-forecast-days="1" class="active">1 доба</button>
                 <button type="button" data-forecast-days="5">5 діб</button>
                 <button type="button" data-forecast-days="7">7 діб</button>
             </div>
-            <small class="metric-note" data-forecast-source>Нейромережевий прогноз LSTM</small>
         </article>
-        <article class="metric-card">
+        <article class="metric-card metric-card-compact">
             <span>Активні пристрої</span>
             <strong data-device-count>0</strong>
         </article>
-        <article class="metric-card">
+        <article class="metric-card metric-card-compact">
             <span>Групи об'єктів</span>
             <strong data-household-count>0</strong>
         </article>
@@ -63,7 +63,6 @@
                     <button type="button" data-chart-days="5">5 днів</button>
                     <button type="button" data-chart-days="7">7 днів</button>
                 </div>
-                <span class="muted" data-chart-status>Завантаження...</span>
             </div>
         </div>
         <div class="chart-placeholder">

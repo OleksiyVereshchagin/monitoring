@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST-контролер для реєстрації, входу та видачі JWT-токена користувачу.
+ */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor

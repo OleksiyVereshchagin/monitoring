@@ -11,6 +11,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Виконує легку міграцію профілів симуляції під час старту застосунку.
+ * Потрібен для сумісності старих даних з новою прив'язкою профілю до групи пристроїв.
+ */
 @Slf4j
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)

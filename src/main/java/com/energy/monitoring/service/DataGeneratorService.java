@@ -23,6 +23,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Створює та дозаповнює readings для пристроїв користувача.
+ * Підтримує стартову історію, регулярне оновлення даних і симуляцію аномалій.
+ * Використовує PatternGenerator, щоб dashboard мав стабільні історичні дані без провалів.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

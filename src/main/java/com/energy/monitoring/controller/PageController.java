@@ -3,6 +3,9 @@ package com.energy.monitoring.controller;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
+/**
+ * MVC-контролер, який відкриває HTML-сторінки застосунку.
+ */
 @Controller
 public class PageController {
 

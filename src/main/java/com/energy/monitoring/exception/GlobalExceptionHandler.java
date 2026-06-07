@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
+/**
+ * Глобально перетворює помилки застосунку на зрозумілі HTTP-відповіді для frontend.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * REST-контролер для налаштування сценарію споживання окремої групи пристроїв.
+ */
 @RestController
 @RequestMapping("/api/simulation-profile")
 @RequiredArgsConstructor

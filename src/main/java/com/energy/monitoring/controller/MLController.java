@@ -19,6 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * REST-контролер для ML-функцій dashboard: прогнозу, графіка, аномалій та внеску пристроїв.
+ * Працює з даними поточного користувача і підтримує фільтрацію за групою пристроїв.
+ */
 @RestController
 @RequestMapping("/api/ml")
 @RequiredArgsConstructor

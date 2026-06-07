@@ -123,19 +123,9 @@ const loadDashboardMetrics = async () => {
             const total = forecastPayload.totalKwh != null
                 ? Number(forecastPayload.totalKwh).toFixed(2)
                 : (values.reduce((a, b) => a + b, 0) * (10 / 60)).toFixed(2);
-            const days = forecastPayload.days || forecastDays;
-            const source = forecastPayload.source || "LSTM_24H";
-            const forecastLabel = document.querySelector("[data-forecast-label]");
             const forecastEl = document.querySelector("[data-forecast-power]");
-            const forecastSource = document.querySelector("[data-forecast-source]");
-            if (forecastLabel) {
-                forecastLabel.textContent = getForecastPeriodLabel(days);
-            }
             if (forecastEl) {
                 forecastEl.textContent = `${total} кВт·год`;
-            }
-            if (forecastSource) {
-                forecastSource.textContent = getForecastSourceLabel(source);
             }
         }
     } catch (error) {
@@ -392,22 +382,6 @@ const getChartDays = () => (
 
 const getForecastDays = () => (
     document.querySelector("[data-forecast-days].active")?.dataset.forecastDays || "1"
-);
-
-const getForecastPeriodLabel = (days) => {
-    if (String(days) === "5") {
-        return "Прогноз на 5 діб";
-    }
-    if (String(days) === "7") {
-        return "Прогноз на 7 діб";
-    }
-    return "Прогноз на 24 год";
-};
-
-const getForecastSourceLabel = (source) => (
-    source === "LSTM_24H"
-        ? "Нейромережевий прогноз LSTM"
-        : "Орієнтовний прогноз за історичним патерном"
 );
 
 const getChartPeriodLabel = (days) => {
